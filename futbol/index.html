@@ -112,7 +112,7 @@ details[open] > summary::after { content: "–"; }
 .chart .axis text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
 .chart .line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .chart .thr { stroke: var(--sprint); stroke-width: 1.5; stroke-dasharray: 4 4; }
-.chart .thr-label { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
+.chart .thr-label { fill: var(--muted); font-size: 11px; font-family: var(--font-body); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; }
 .chart .band { fill: var(--sprint); opacity: 0.28; }
 .chart .peak { fill: var(--sprint); stroke: var(--surface); stroke-width: 2; }
 .chart .cross { stroke: var(--muted); stroke-width: 1; }
@@ -152,6 +152,14 @@ details[open] > summary::after { content: "–"; }
 .list .nums b { color: var(--fg); font-weight: 600; }
 .records { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .empty { color: var(--muted); padding: 10px 0; margin: 0; }
+.actions .wide { grid-column: 1 / -1; }
+.btn.health { border-color: var(--accent); color: var(--accent); }
+.hpick { border-top: 1px solid var(--line); padding-top: 14px; display: flex; flex-direction: column; gap: 12px; }
+.hp-row { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; padding: 10px 2px; cursor: pointer; }
+.hp-row input { width: 20px; height: 20px; accent-color: var(--accent); }
+.hp-row .d { font-size: 0.82rem; color: var(--muted); }
+.note { background: var(--accent-soft); border-radius: 10px; padding: 10px 12px; font-size: 0.86rem; margin: 0; }
+.link { background: none; border: 0; color: var(--muted); font: inherit; text-decoration: underline; cursor: pointer; padding: 4px; align-self: flex-start; }
 .foot { display: flex; gap: 8px; flex-wrap: wrap; }
 @media (max-width: 380px) {
   .tiles, .records { grid-template-columns: 1fr 1fr; }
@@ -174,10 +182,33 @@ details[open] > summary::after { content: "–"; }
       <label class="btn primary">Subir archivo del reloj
         <input id="file" type="file" accept=".fit,.gpx,.tcx,.zip,application/zip,application/gpx+xml" multiple>
       </label>
+      <label class="btn health wide">Importar de Apple Salud (iPhone)
+        <input id="healthFile" type="file" accept=".zip,.xml,application/zip,text/xml,application/xml">
+      </label>
       <button class="btn" id="demo" type="button">Ver un ejemplo</button>
       <button class="btn" id="manualBtn" type="button" aria-expanded="false" aria-controls="manual">Apuntar a mano</button>
     </div>
     <p class="status" id="status" role="status"></p>
+
+    <div class="hpick" id="hpick" hidden>
+      <div>
+        <h3>Entrenamientos encontrados en Salud</h3>
+        <p class="sub" id="hpInfo" style="font-size:.85rem"></p>
+      </div>
+      <ul class="list" id="hpList"></ul>
+      <button class="btn primary" id="hpImport" type="button">Añadir los marcados</button>
+      <details class="help" id="hpWin">
+        <summary>¿No sale tu partido? Búscalo por día y hora</summary>
+        <div class="grid2" style="margin-top:10px">
+          <label class="field">Día<input type="date" id="hwDate"></label>
+          <label class="field">Nombre<input type="text" id="hwName" placeholder="Partido vs …"></label>
+          <label class="field">Empieza<input type="time" id="hwFrom" value="18:00"></label>
+          <label class="field">Acaba<input type="time" id="hwTo" value="19:30"></label>
+        </div>
+        <div class="foot" style="margin-top:10px"><button class="btn primary small" id="hwAdd" type="button">Añadir esa franja</button></div>
+      </details>
+      <button class="link" id="hpClose" type="button">Cerrar</button>
+    </div>
 
     <form id="manual" hidden>
       <div class="grid2">
@@ -192,8 +223,9 @@ details[open] > summary::after { content: "–"; }
     </form>
 
     <details class="help">
-      <summary>¿Cómo saco el archivo de mi reloj?</summary>
+      <summary>¿Cómo saco los datos de mi reloj?</summary>
       <ul>
+        <li><b>Pulsera con QWatch Pro (o cualquier reloj que guarde en Salud):</b> en QWatch Pro activa la conexión con <i>Salud</i>. Después del partido abre la app <b>Salud</b> → tu foto (arriba a la derecha) → <i>Exportar todos los datos de salud</i> → <i>Guardar en Archivos</i>. Vuelve aquí, pulsa <i>Importar de Apple Salud</i> y elige ese <i>exportar.zip</i>. Tarda un poco: lo lee entero en el móvil.</li>
         <li><b>Garmin:</b> entra en connect.garmin.com desde el navegador, abre la actividad, rueda dentada → <i>Exportar original</i> (sube el .zip tal cual) o <i>Exportar a GPX/TCX</i>.</li>
         <li><b>Strava</b> (sirve con casi cualquier reloj): abre la actividad en strava.com → <i>⋯</i> → <i>Exportar GPX</i> o <i>Exportar original</i>.</li>
         <li><b>Polar:</b> flow.polar.com → la sesión → rueda dentada → <i>Exportar sesión</i> (TCX o GPX).</li>
@@ -201,6 +233,7 @@ details[open] > summary::after { content: "–"; }
         <li><b>Huawei, Amazfit, Apple Watch, Samsung:</b> lo más fácil es sincronizarlo con Strava y exportarlo desde ahí.</li>
       </ul>
       <p>Tus datos se quedan solo en este móvil. Nada se sube a ningún servidor.</p>
+      <p><b>Instalarla en el iPhone:</b> ábrela en Safari → botón <i>Compartir</i> → <i>Añadir a pantalla de inicio</i>.</p>
     </details>
   </section>
 
@@ -218,10 +251,11 @@ details[open] > summary::after { content: "–"; }
         </label>
       </div>
       <div class="hero">
-        <div class="stat"><div class="label">Distancia</div><div class="v tnum" id="hDist"></div></div>
-        <div class="stat"><div class="label">Velocidad máx.</div><div class="v tnum" id="hVmax"></div></div>
+        <div class="stat"><div class="label" id="hDistL">Distancia</div><div class="v tnum" id="hDist"></div></div>
+        <div class="stat"><div class="label" id="hVmaxL">Velocidad máx.</div><div class="v tnum" id="hVmax"></div></div>
       </div>
       <div class="tiles" id="tiles"></div>
+      <p class="note" id="sNote" hidden></p>
     </div>
 
     <div class="card" id="chartCard">
@@ -231,6 +265,23 @@ details[open] > summary::after { content: "–"; }
       </div>
       <div class="chart" id="chart"></div>
       <div class="legend"><span><i style="background:var(--accent)"></i>Velocidad (media de 5 s)</span><span><i style="background:var(--sprint);height:10px;width:10px;opacity:.6"></i>Sprint</span></div>
+    </div>
+
+    <div class="card" id="hrCard">
+      <div>
+        <h2>Pulso durante el partido</h2>
+        <p class="sub" style="font-size:.88rem">Toca la gráfica para ver tus pulsaciones en cada momento.</p>
+      </div>
+      <div class="chart" id="hrChart"></div>
+      <h3>Tiempo en cada zona de pulso</h3>
+      <div class="zones" id="hrZones"></div>
+      <details class="help">
+        <summary>Ajustar pulso máximo</summary>
+        <div class="grid2" style="margin-top:10px">
+          <label class="field">Tu pulso máximo (ppm)<input type="number" id="hrMaxIn" min="140" max="230" step="1" inputmode="numeric"></label>
+        </div>
+        <p>Si no lo sabes, una aproximación es 220 menos tu edad.</p>
+      </details>
     </div>
 
     <div class="card" id="zonesCard">
@@ -291,6 +342,7 @@ details[open] > summary::after { content: "–"; }
   // ---------- Estado ----------
   let state = { sessions: [], settings: { hi: 18, sprint: 21 }, sel: null };
   try { const s = JSON.parse(localStorage.getItem(KEY) || "null"); if (s && Array.isArray(s.sessions)) state = Object.assign(state, s); } catch (e) {}
+  state.settings = Object.assign({ hi: 18, sprint: 21, hrMax: 190 }, state.settings);
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(state)); return true; }
     catch (e) { setStatus("El móvil se ha quedado sin espacio para guardar más partidos. Pulsa “Guardar copia” y borra alguno antiguo.", true); return false; }
@@ -365,38 +417,51 @@ details[open] > summary::after { content: "–"; }
     return pts;
   }
 
-  async function unzip(buf) {
-    const dv = new DataView(buf); const out = [];
-    let e = buf.byteLength - 22; while (e >= 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
+  // ZIP leído por trozos desde el archivo (sirve para el .zip de Garmin y para el de Apple Salud, aunque pese mucho)
+  async function zipOpen(blob) {
+    const rd = async (a, b) => new DataView(await blob.slice(a, b).arrayBuffer());
+    const size = blob.size; const tail = await rd(Math.max(0, size - 65558), size);
+    let e = tail.byteLength - 22; while (e >= 0 && tail.getUint32(e, true) !== 0x06054b50) e--;
     if (e < 0) throw new Error("ZIP no válido.");
-    let p = dv.getUint32(e + 16, true); const count = dv.getUint16(e + 10, true);
-    for (let i = 0; i < count; i++) {
-      if (dv.getUint32(p, true) !== 0x02014b50) break;
-      const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true);
-      const nlen = dv.getUint16(p + 28, true), xlen = dv.getUint16(p + 30, true), clen = dv.getUint16(p + 32, true), lo = dv.getUint32(p + 42, true);
-      const name = new TextDecoder().decode(new Uint8Array(buf, p + 46, nlen));
-      p += 46 + nlen + xlen + clen;
-      if (!/\.(fit|gpx|tcx)$/i.test(name)) continue;
-      const start = lo + 30 + dv.getUint16(lo + 26, true) + dv.getUint16(lo + 28, true);
-      const raw = buf.slice(start, start + csize);
-      let data;
-      if (method === 0) data = raw;
-      else if (method === 8) {
-        if (!("DecompressionStream" in window)) throw new Error("Tu navegador no puede abrir ZIP. Descomprímelo y sube el .fit.");
-        data = await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer();
-      } else continue;
-      out.push({ name, data });
+    let count = tail.getUint16(e + 10, true), cdSize = tail.getUint32(e + 12, true), cdOff = tail.getUint32(e + 16, true);
+    if (cdOff === 0xffffffff || count === 0xffff || cdSize === 0xffffffff) { // ZIP64
+      const loc = e - 20;
+      if (loc >= 0 && tail.getUint32(loc, true) === 0x07064b50) {
+        const off64 = Number(tail.getBigUint64(loc + 8, true)); const z = await rd(off64, off64 + 56);
+        count = Number(z.getBigUint64(32, true)); cdSize = Number(z.getBigUint64(40, true)); cdOff = Number(z.getBigUint64(48, true));
+      }
     }
-    if (!out.length) throw new Error("El ZIP no tiene ningún .fit, .gpx o .tcx.");
-    return out;
+    const cd = await rd(cdOff, cdOff + cdSize); const entries = []; let p = 0;
+    for (let i = 0; i < count && p + 46 <= cd.byteLength; i++) {
+      if (cd.getUint32(p, true) !== 0x02014b50) break;
+      const method = cd.getUint16(p + 10, true); let csize = cd.getUint32(p + 20, true), usize = cd.getUint32(p + 24, true);
+      const nlen = cd.getUint16(p + 28, true), xlen = cd.getUint16(p + 30, true), clen = cd.getUint16(p + 32, true); let lo = cd.getUint32(p + 42, true);
+      const name = new TextDecoder().decode(new Uint8Array(cd.buffer, cd.byteOffset + p + 46, nlen));
+      let x = p + 46 + nlen; const xend = x + xlen;
+      while (x + 4 <= xend) {
+        const id = cd.getUint16(x, true), sz = cd.getUint16(x + 2, true);
+        if (id === 1) { let q = x + 4;
+          if (usize === 0xffffffff) { usize = Number(cd.getBigUint64(q, true)); q += 8; }
+          if (csize === 0xffffffff) { csize = Number(cd.getBigUint64(q, true)); q += 8; }
+          if (lo === 0xffffffff) lo = Number(cd.getBigUint64(q, true)); }
+        x += 4 + sz;
+      }
+      p = xend + clen;
+      entries.push({ name, method, csize, lo });
+    }
+    async function raw(en) { const h = await rd(en.lo, en.lo + 30); const st = en.lo + 30 + h.getUint16(26, true) + h.getUint16(28, true); return blob.slice(st, st + en.csize).stream(); }
+    function inflate(st, en) {
+      if (en.method === 0) return st;
+      if (en.method !== 8) throw new Error("Formato de ZIP no soportado.");
+      if (!("DecompressionStream" in window)) throw new Error("Tu navegador no puede abrir ZIP. Actualiza el iPhone o descomprime el archivo.");
+      return st.pipeThrough(new DecompressionStream("deflate-raw"));
+    }
+    return { entries, raw, inflate, async read(en) { return new Response(inflate(await raw(en), en)).arrayBuffer(); } };
   }
 
-  async function readAny(name, buf) {
-    if (/\.zip$/i.test(name)) { const files = await unzip(buf); const r = []; for (const f of files) r.push(...(await readAny(f.name, f.data))); return r; }
-    let pts;
-    if (/\.fit$/i.test(name)) pts = parseFit(buf);
-    else pts = parseXmlTrack(new TextDecoder().decode(buf));
-    return [{ name: name.replace(/\.[^.]+$/, ""), pts }];
+  function readTrack(name, buf) {
+    const pts = /\.fit$/i.test(name) ? parseFit(buf) : parseXmlTrack(new TextDecoder().decode(buf));
+    return [{ name: name.replace(/^.*\//, "").replace(/\.[^.]+$/, ""), pts }];
   }
 
   // ---------- Procesado: serie de 1 segundo ----------
@@ -503,6 +568,7 @@ details[open] > summary::after { content: "–"; }
   }
   function summary(sess) {
     if (sess.manual) return sess.manual;
+    if (sess.health) return { dist: sess.health.dist || 0, vmax: null, sprints: null, steps: sess.health.steps, mins: sess.health.dur / 60 };
     const a = analyze(unpack(sess.track));
     return { dist: a.dist, vmax: a.vmax, sprints: a.sprints.length, mins: a.dur / 60 };
   }
@@ -548,7 +614,15 @@ details[open] > summary::after { content: "–"; }
     let ok = 0, dups = 0; const errs = [];
     for (const f of files) {
       try {
-        const items = await readAny(f.name, await f.arrayBuffer());
+        let items = [];
+        if (/\.zip$/i.test(f.name)) {
+          const z = await zipOpen(f);
+          const exp = z.entries.find((en) => /(^|\/)(export|exportar)\.xml$/i.test(en.name));
+          if (exp) { await importHealth({ zip: z, entry: exp }); return; }
+          for (const en of z.entries) if (/\.(fit|gpx|tcx)$/i.test(en.name)) items.push(...readTrack(en.name, await z.read(en)));
+          if (!items.length) throw new Error("El ZIP no tiene ningún .fit, .gpx o .tcx.");
+        } else if (/\.xml$/i.test(f.name)) { await importHealth({ file: f }); return; }
+        else items = readTrack(f.name, await f.arrayBuffer());
         for (const it of items) { const r = addSession(it.name, it.pts); if (r.dup) { dups++; state.sel = r.dup.id; } else ok++; }
       } catch (err) { errs.push(f.name + ": " + (err.message || "no se pudo leer")); }
     }
@@ -564,6 +638,192 @@ details[open] > summary::after { content: "–"; }
     save(); render(); setStatus(r.dup ? "El ejemplo ya estaba cargado." : "Partido de ejemplo añadido. Bórralo cuando quieras.");
     $("session").scrollIntoView({ behavior: "smooth", block: "start" });
   });
+
+  // ---------- Apple Salud ----------
+  // Lee export.xml por trozos y se queda solo con pulso, pasos, distancia, calorías y entrenamientos.
+  let health = null;
+  function series() { return { n: 0, s: new Float64Array(4096), e: new Float64Array(4096), v: new Float32Array(4096), src: new Uint16Array(4096) }; }
+  function spush(S, s, e, v, src) {
+    if (S.n === S.s.length) for (const k of ["s", "e", "v", "src"]) { const a = new S[k].constructor(S.n * 2); a.set(S[k]); S[k] = a; }
+    S.s[S.n] = s; S.e[S.n] = e; S.v[S.n] = v; S.src[S.n] = src; S.n++;
+  }
+  function ssort(S) {
+    const idx = new Uint32Array(S.n); for (let i = 0; i < S.n; i++) idx[i] = i;
+    idx.sort((a, b) => S.s[a] - S.s[b]);
+    for (const k of ["s", "e", "v", "src"]) { const a = new S[k].constructor(S.n); for (let i = 0; i < S.n; i++) a[i] = S[k][idx[i]]; S[k] = a; }
+  }
+  function lowerBound(arr, n, x) { let lo = 0, hi = n; while (lo < hi) { const m = (lo + hi) >> 1; if (arr[m] < x) lo = m + 1; else hi = m; } return lo; }
+  function hDate(str) { // "2026-11-01 18:00:00 +0100"
+    if (!str) return NaN;
+    const ms = Date.UTC(+str.slice(0, 4), +str.slice(5, 7) - 1, +str.slice(8, 10), +str.slice(11, 13), +str.slice(14, 16), +str.slice(17, 19));
+    const z = str.slice(20).trim(); if (!z) return ms;
+    const sg = z[0] === "-" ? -1 : 1; return ms - sg * ((+z.slice(1, 3)) * 60 + (+z.slice(3, 5))) * 60000;
+  }
+  const attr = (t, k) => { const i = t.indexOf(" " + k + '="'); if (i < 0) return null; const a = i + k.length + 3; return t.slice(a, t.indexOf('"', a)); };
+  const toM = (v, u) => u === "km" ? v * 1000 : u === "mi" ? v * 1609.344 : u === "ft" ? v * 0.3048 : v;
+  const toKcal = (v, u) => u === "kJ" ? v / 4.184 : v;
+
+  async function scanHealthXml(stream, onProgress) {
+    const H = { hr: series(), steps: series(), dist: series(), kcal: series(), workouts: [], sources: [], srcMap: new Map() };
+    const src = (name) => { name = name || "?"; let id = H.srcMap.get(name); if (id == null) { id = H.sources.length; H.sources.push(name); H.srcMap.set(name, id); } return id; };
+    const reader = stream.pipeThrough(new TextDecoderStream()).getReader();
+    let buf = "", w = null;
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (value) buf += value;
+      let i = 0;
+      for (;;) {
+        const a = buf.indexOf("<", i); if (a < 0) { i = buf.length; break; }
+        const b = buf.indexOf(">", a); if (b < 0) { i = a; break; }
+        i = b + 1;
+        const c1 = buf.charCodeAt(a + 1);
+        if (c1 === 82 && buf.startsWith("<Record ", a)) { // R
+          const t = buf.slice(a, b);
+          const type = attr(t, "type"); if (!type) continue;
+          let S = null, val;
+          if (type === "HKQuantityTypeIdentifierHeartRate") { S = H.hr; val = parseFloat(attr(t, "value")); }
+          else if (type === "HKQuantityTypeIdentifierStepCount") { S = H.steps; val = parseFloat(attr(t, "value")); }
+          else if (type === "HKQuantityTypeIdentifierDistanceWalkingRunning") { S = H.dist; val = toM(parseFloat(attr(t, "value")), attr(t, "unit")); }
+          else if (type === "HKQuantityTypeIdentifierActiveEnergyBurned") { S = H.kcal; val = toKcal(parseFloat(attr(t, "value")), attr(t, "unit")); }
+          if (!S || !isFinite(val)) continue;
+          const st = hDate(attr(t, "startDate")); if (!isFinite(st)) continue;
+          const en = hDate(attr(t, "endDate"));
+          spush(S, st, isFinite(en) ? en : st, val, src(attr(t, "sourceName")));
+        } else if (c1 === 87) { // W
+          if (buf.startsWith("<Workout ", a)) {
+            const t = buf.slice(a, b);
+            w = { type: (attr(t, "workoutActivityType") || "").replace("HKWorkoutActivityType", ""), s: hDate(attr(t, "startDate")), e: hDate(attr(t, "endDate")),
+              src: attr(t, "sourceName") || "", dist: null, kcal: null, route: null };
+            const td = attr(t, "totalDistance"); if (td) w.dist = toM(parseFloat(td), attr(t, "totalDistanceUnit"));
+            const te = attr(t, "totalEnergyBurned"); if (te) w.kcal = toKcal(parseFloat(te), attr(t, "totalEnergyBurnedUnit"));
+            if (buf.charCodeAt(b - 1) === 47) { if (isFinite(w.s)) H.workouts.push(w); w = null; }
+          } else if (w && buf.startsWith("<WorkoutStatistics ", a)) {
+            const t = buf.slice(a, b); const type = attr(t, "type"); const sum = parseFloat(attr(t, "sum"));
+            if (/DistanceWalkingRunning$/.test(type) && sum > 0) w.dist = toM(sum, attr(t, "unit"));
+            else if (/ActiveEnergyBurned$/.test(type) && sum > 0) w.kcal = toKcal(sum, attr(t, "unit"));
+          }
+        } else if (w && c1 === 70 && buf.startsWith("<FileReference ", a)) { w.route = attr(buf.slice(a, b), "path"); }
+        else if (w && c1 === 47 && buf.startsWith("</Workout>", a)) { if (isFinite(w.s)) H.workouts.push(w); w = null; }
+      }
+      buf = buf.slice(i);
+      if (done) break;
+      onProgress();
+    }
+    for (const k of ["hr", "steps", "dist", "kcal"]) ssort(H[k]);
+    H.workouts.sort((x, y) => y.s - x.s);
+    return H;
+  }
+
+  // Suma de una magnitud en una franja, quedándose con la fuente que más aporta (para no contar doble móvil + pulsera)
+  function windowSum(S, s, e) {
+    const per = new Map();
+    for (let i = lowerBound(S.s, S.n, s - 6 * 3600e3); i < S.n && S.s[i] < e; i++) {
+      const ov = Math.min(e, S.e[i]) - Math.max(s, S.s[i]); const d = S.e[i] - S.s[i];
+      const f = d > 0 ? Math.max(0, ov) / d : (S.s[i] >= s && S.s[i] < e ? 1 : 0);
+      if (f > 0) per.set(S.src[i], (per.get(S.src[i]) || 0) + S.v[i] * f);
+    }
+    let best = null; for (const [k, v] of per) if (!best || v > best.v) best = { v, src: k };
+    return best;
+  }
+  function windowHr(S, s, e) { const out = []; for (let i = lowerBound(S.s, S.n, s); i < S.n && S.s[i] <= e; i++) out.push([Math.round((S.s[i] - s) / 1000), Math.round(S.v[i])]); return out; }
+  function thinHr(hr, max) {
+    if (hr.length <= max) return hr;
+    const step = hr.length / max, out = [];
+    for (let k = 0; k < max; k++) { const a = Math.floor(k * step), b = Math.floor((k + 1) * step); let sum = 0; for (let i = a; i < b; i++) sum += hr[i][1]; out.push([hr[a][0], Math.round(sum / (b - a))]); }
+    return out;
+  }
+  const TYPES = { Soccer: "Fútbol", Running: "Carrera", Walking: "Caminata", Cycling: "Bici", HighIntensityIntervalTraining: "HIIT", TraditionalStrengthTraining: "Fuerza",
+    FunctionalStrengthTraining: "Fuerza", MixedCardio: "Cardio", Other: "Otro", Hiking: "Senderismo", Swimming: "Natación", Basketball: "Baloncesto", Tennis: "Tenis", Paddle: "Pádel", Yoga: "Yoga" };
+  const typeName = (t) => TYPES[t] || t || "Entrenamiento";
+
+  function healthSession(s, e, w, name) {
+    const H = health; const steps = windowSum(H.steps, s, e), dist = windowSum(H.dist, s, e), kc = windowSum(H.kcal, s, e);
+    let d = null, how = "";
+    if (w && w.dist > 0) { d = w.dist; how = "entreno"; } else if (dist && dist.v > 0) { d = dist.v; how = "registros"; } else if (steps && steps.v > 0) { d = steps.v * 0.78; how = "pasos"; }
+    const srcId = (steps || dist || {}).src;
+    return { id: "h" + s, date: s, name: name || (w ? (w.type === "Soccer" ? "Partido" : typeName(w.type)) : "Partido"), type: !w || w.type === "Soccer" ? "partido" : "entreno",
+      health: { dur: Math.round((e - s) / 1000), dist: d, how, steps: steps ? Math.round(steps.v) : null, kcal: w && w.kcal ? w.kcal : kc ? kc.v : null,
+        hr: thinHr(windowHr(H.hr, s, e), 600), src: (w && w.src) || (srcId != null ? H.sources[srcId] : "") } };
+  }
+
+  async function importHealth(src) {
+    $("hpick").hidden = true; health = null;
+    const total = src.zip ? src.entry.csize : src.file.size; let read = 0, last = -1;
+    const counter = new TransformStream({ transform(ch, c) { read += ch.byteLength; c.enqueue(ch); } });
+    let st = (src.zip ? await src.zip.raw(src.entry) : src.file.stream()).pipeThrough(counter);
+    if (src.zip) st = src.zip.inflate(st, src.entry);
+    const t0 = Date.now();
+    setStatus("Leyendo tus datos de Salud… 0 %");
+    const H = await scanHealthXml(st, () => { const pc = Math.min(99, Math.floor(read / total * 100)); if (pc !== last) { last = pc; setStatus(`Leyendo tus datos de Salud… ${pc} %`); } });
+    H.zip = src.zip || null; health = H;
+    setStatus(`Datos de Salud leídos en ${Math.max(1, Math.round((Date.now() - t0) / 1000))} s.`);
+    showPicker();
+  }
+
+  function showPicker() {
+    const H = health; const list = H.workouts.slice(0, 60);
+    $("hpInfo").textContent = `${fmt0(H.hr.n)} medidas de pulso y ${fmt0(H.steps.n)} registros de pasos. Fuentes: ${H.sources.slice(0, 6).join(", ") || "ninguna"}.`;
+    const have = new Set(state.sessions.map((x) => x.id));
+    $("hpList").innerHTML = list.length ? list.map((w, i) => {
+      const done = have.has("h" + w.s);
+      return `<li><label class="hp-row"><input type="checkbox" data-i="${i}" ${w.type === "Soccer" && !done ? "checked" : ""} ${done ? "disabled" : ""}>
+        <div><div class="t">${w.type === "Soccer" ? "⚽ " : ""}${typeName(w.type)} · ${Math.round((w.e - w.s) / 60000)} min${done ? " · ya añadido" : ""}</div>
+        <div class="d tnum">${fDate(w.s)} · ${fTime(w.s)}${w.src ? " · " + w.src.replace(/[<>&]/g, "") : ""}</div></div></label></li>`;
+    }).join("") : `<li><p class="empty">Salud no tiene entrenamientos guardados. Si la pulsera no registra el partido como entrenamiento, búscalo por día y hora aquí abajo.</p></li>`;
+    $("hpImport").hidden = !list.length; $("hpWin").open = !list.length;
+    $("hwDate").value = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    $("hpick").hidden = false; $("hpick").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  $("healthFile").addEventListener("change", async (e) => {
+    const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+    try {
+      if (/\.zip$/i.test(f.name)) {
+        const z = await zipOpen(f); const exp = z.entries.find((en) => /(^|\/)(export|exportar)\.xml$/i.test(en.name));
+        if (!exp) throw new Error("Ese ZIP no es una exportación de Salud (no tiene export.xml).");
+        await importHealth({ zip: z, entry: exp });
+      } else await importHealth({ file: f });
+    } catch (err) { setStatus(err.message || "No se pudo leer el archivo.", true); }
+  });
+
+  function hrForPoints(pts) { // añade el pulso de Salud a una ruta GPS
+    const S = health.hr; if (!S.n) return;
+    for (const p of pts) { if (p.t == null) continue; const i = lowerBound(S.s, S.n, p.t); const c = [i - 1, i].filter((k) => k >= 0 && k < S.n).sort((a, b) => Math.abs(S.s[a] - p.t) - Math.abs(S.s[b] - p.t))[0];
+      if (c != null && Math.abs(S.s[c] - p.t) < 120000) p.hr = S.v[c]; }
+  }
+
+  $("hpImport").addEventListener("click", async () => {
+    const boxes = [...$("hpList").querySelectorAll("input:checked:not(:disabled)")];
+    if (!boxes.length) { setStatus("Marca al menos un entrenamiento.", true); return; }
+    let n = 0, gps = 0;
+    for (const b of boxes) {
+      const w = health.workouts[+b.dataset.i]; const id = "h" + w.s;
+      if (state.sessions.some((x) => x.id === id)) continue;
+      if (w.route && health.zip) { // si el entreno tiene ruta GPS (por ejemplo, grabado con el iPhone), análisis completo
+        const en = health.zip.entries.find((x) => x.name.endsWith(w.route));
+        if (en) try {
+          const pts = parseXmlTrack(new TextDecoder().decode(await health.zip.read(en))); hrForPoints(pts);
+          const r = addSession(w.type === "Soccer" ? "Partido" : typeName(w.type), pts);
+          if (r.sess) { r.sess.id = id; state.sel = id; n++; gps++; continue; }
+        } catch (err) {}
+      }
+      const sess = healthSession(w.s, w.e, w); state.sessions.push(sess); state.sel = sess.id; n++;
+    }
+    save(); render(); showPicker();
+    setStatus(n ? `${n === 1 ? "Añadido 1 entrenamiento" : "Añadidos " + n + " entrenamientos"}${gps ? " (" + gps + " con GPS)" : ""}.` : "Ya estaban añadidos.");
+    if (n) $("session").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  $("hwAdd").addEventListener("click", () => {
+    const d = $("hwDate").value, a = $("hwFrom").value, b = $("hwTo").value;
+    if (!d || !a || !b) { setStatus("Pon el día y las horas.", true); return; }
+    const s = new Date(d + "T" + a).getTime(); let e = new Date(d + "T" + b).getTime(); if (e <= s) e += 86400000;
+    if (state.sessions.some((x) => x.id === "h" + s + "-" + e)) { setStatus("Esa franja ya está añadida.", true); return; }
+    const sess = healthSession(s, e, null, $("hwName").value.trim() || "Partido"); sess.id = "h" + s + "-" + e;
+    if (!sess.health.steps && !sess.health.hr.length) { setStatus("No hay datos de la pulsera en esa franja. Revisa el día y la hora.", true); return; }
+    state.sessions.push(sess); state.sel = sess.id; save(); render();
+    setStatus("Partido añadido desde Salud."); $("session").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  $("hpClose").addEventListener("click", () => { $("hpick").hidden = true; health = null; setStatus(""); });
 
   const manualForm = $("manual");
   $("manualBtn").addEventListener("click", () => {
@@ -585,7 +845,7 @@ details[open] > summary::after { content: "–"; }
   // ---------- Pintar ----------
   function render() {
     state.sessions.sort((a, b) => b.date - a.date);
-    $("thrHi").value = state.settings.hi; $("thrSp").value = state.settings.sprint;
+    $("thrHi").value = state.settings.hi; $("thrSp").value = state.settings.sprint; $("hrMaxIn").value = state.settings.hrMax;
     renderHistory();
     const sess = state.sessions.find((s) => s.id === state.sel) || state.sessions[0];
     if (!sess) { $("session").hidden = true; return; }
@@ -595,13 +855,25 @@ details[open] > summary::after { content: "–"; }
   function tile(k, v, unit) { return `<div class="tile"><div class="v tnum">${v}${unit ? `<small>${unit}</small>` : ""}</div><div class="k">${k}</div></div>`; }
 
   let current = null;
+  function hrStats(hr) {
+    if (!hr || hr.length < 2) return null;
+    const mx = state.settings.hrMax, cuts = [0.6, 0.7, 0.8, 0.9].map((k) => k * mx); const z = [0, 0, 0, 0, 0];
+    let sum = 0, max = 0, wsum = 0;
+    for (let i = 0; i < hr.length; i++) {
+      const v = hr[i][1], dt = Math.min(120, i < hr.length - 1 ? hr[i + 1][0] - hr[i][0] : 5);
+      sum += v * dt; wsum += dt; if (v > max) max = v;
+      let k = 0; while (k < 4 && v >= cuts[k]) k++; z[k] += dt;
+    }
+    return { avg: wsum ? sum / wsum : 0, max, zones: z, high: z[3] + z[4] };
+  }
   function renderSession(sess) {
     $("session").hidden = false;
     $("sName").value = sess.name; $("sType").value = sess.type || "partido";
-    $("sDate").textContent = fDate(sess.date) + (sess.manual ? " · apuntado a mano" : " · " + fTime(sess.date));
-    const gps = !sess.manual;
+    $("sDate").textContent = fDate(sess.date) + (sess.manual ? " · apuntado a mano" : " · " + fTime(sess.date)) + (sess.health && sess.health.src ? " · " + sess.health.src : "");
+    const gps = !sess.manual && !sess.health;
     for (const id of ["chartCard", "zonesCard", "heatCard", "sprintCard"]) $(id).hidden = !gps;
-    if (!gps) {
+    $("hDistL").textContent = "Distancia"; $("hVmaxL").textContent = "Velocidad máx."; $("sNote").hidden = true; $("hrCard").hidden = true;
+    if (sess.manual) {
       const m = sess.manual; current = null;
       $("hDist").innerHTML = fmt2(m.dist / 1000) + "<small>km</small>";
       $("hVmax").innerHTML = m.vmax != null ? fmt1(m.vmax) + "<small>km/h</small>" : "–";
@@ -609,7 +881,25 @@ details[open] > summary::after { content: "–"; }
         + tile("Metros por min", m.mins ? fmt0(m.dist / m.mins) : "–", "m");
       return;
     }
-    const tr = unpack(sess.track); const a = analyze(tr); current = { tr, a };
+    if (sess.health) {
+      const h = sess.health; const hs = hrStats(h.hr); const mins = h.dur / 60;
+      current = { hrSeries: h.hr, hs };
+      $("hDistL").textContent = "Distancia (aprox.)"; $("hVmaxL").textContent = "Pasos";
+      $("hDist").innerHTML = h.dist != null ? fmt2(h.dist / 1000) + "<small>km</small>" : "–";
+      $("hVmax").innerHTML = h.steps != null ? fmt0(h.steps) : "–";
+      $("tiles").innerHTML = tile("Duración", hm(h.dur)) + tile("Pulso medio / máx", hs ? fmt0(hs.avg) + " / " + fmt0(hs.max) : "–", hs ? "ppm" : "")
+        + tile("Esfuerzo alto (≥80 %)", hs ? hm(hs.high) : "–") + tile("Calorías", h.kcal ? fmt0(h.kcal) : "–", h.kcal ? "kcal" : "")
+        + tile("Metros por min", h.dist ? fmt0(h.dist / mins) : "–", h.dist ? "m" : "") + tile("Pasos por min", h.steps ? fmt0(h.steps / mins) : "–");
+      $("sNote").hidden = false;
+      $("sNote").textContent = (h.how === "pasos" ? "Metros estimados a partir de los pasos (0,78 m por paso). " : "Metros calculados por la pulsera. ")
+        + "La pulsera no tiene GPS, así que la distancia es aproximada y no se pueden medir sprints ni velocidad máxima.";
+      $("hrCard").hidden = !hs; if (hs) renderHr();
+      return;
+    }
+    const tr = unpack(sess.track); const a = analyze(tr);
+    let hrSeries = null;
+    if (tr.hr) { hrSeries = []; for (let i = 0; i < tr.t.length; i += 5) if (tr.hr[i] != null) hrSeries.push([tr.t[i], tr.hr[i]]); }
+    const hs = hrStats(hrSeries); current = { tr, a, hrSeries, hs };
     $("hDist").innerHTML = fmt2(a.dist / 1000) + "<small>km</small>";
     $("hVmax").innerHTML = fmt1(a.vmax) + "<small>km/h</small>";
     let tiles = tile("Sprints", fmt0(a.sprints.length)) + tile("Metros en sprint", fmt0(a.sprintDist), "m")
@@ -619,17 +909,35 @@ details[open] > summary::after { content: "–"; }
     if (a.parts.length >= 2) a.parts.slice(0, 3).forEach((p, i) => { tiles += tile((i + 1) + "ª parte", fmt2(p.dist / 1000), "km"); });
     $("tiles").innerHTML = tiles;
     renderChart(); renderZones(a); renderHeat(); renderSprints(a);
+    $("hrCard").hidden = !hs; if (hs) renderHr();
+  }
+
+  function zoneBars(el, rows) { // rows: [{name, range, val, label, sub, color}]
+    const max = Math.max(...rows.map((r) => r.val)) || 1;
+    el.innerHTML = rows.map((r) => `<div class="zone"><div class="name">${r.name}<small>${r.range}</small></div>
+      <div class="track"><div class="fill" style="width:${(r.val / max * 100).toFixed(1)}%;background:${r.color}"></div></div>
+      <div class="val tnum">${r.label}<small>${r.sub}</small></div></div>`).join("");
+  }
+  function renderHr() {
+    if (!current || !current.hs) return;
+    const { hrSeries: hr, hs } = current; const mx = state.settings.hrMax;
+    const names = ["Suave", "Moderado", "Aeróbico", "Alto", "Máximo"], lims = [0, 60, 70, 80, 90, 100];
+    const tot = hs.zones.reduce((a, b) => a + b, 0) || 1;
+    zoneBars($("hrZones"), hs.zones.map((v, i) => ({ name: names[i], range: i === 0 ? "< " + Math.round(mx * 0.6) + " ppm" : i === 4 ? "≥ " + Math.round(mx * 0.9) + " ppm" : Math.round(mx * lims[i] / 100) + "–" + Math.round(mx * lims[i + 1] / 100) + " ppm",
+      val: v, label: mmss(v), sub: fmt0(v / tot * 100) + " %", color: i === 4 ? "var(--sprint)" : `var(--z${i + 1})` })));
+    let lo = Infinity, hi = 0; for (const [, v] of hr) { if (v < lo) lo = v; if (v > hi) hi = v; }
+    const yMin = Math.max(0, Math.floor((lo - 10) / 20) * 20), yMax = Math.ceil((Math.max(hi, mx * 0.8) + 5) / 20) * 20;
+    let peak = hr[0]; for (const p of hr) if (p[1] > peak[1]) peak = p;
+    lineChart($("hrChart"), { pts: hr.map(([t, v], i) => ({ t, v, gap: i > 0 && t - hr[i - 1][0] > 600 })), tMax: hr[hr.length - 1][0] || 1, yMin, yMax, yStep: 20,
+      thr: Math.round(mx * 0.8), thrLabel: "Esfuerzo alto ≥ " + Math.round(mx * 0.8) + " ppm", peak: { t: peak[0], v: peak[1] },
+      tipFmt: (b) => `Min ${mmss(b.t)} · ${fmt0(b.v)} ppm`, aria: `Pulso durante el partido. Máximo ${fmt0(hs.max)} ppm.` });
   }
 
   function renderZones(a) {
-    const total = a.zones.reduce((s, z) => s + z.m, 0) || 1; const max = Math.max(...a.zones.map((z) => z.m)) || 1;
-    $("zones").innerHTML = a.zones.map((z, i) => {
-      const range = z.hi === Infinity ? "+" + fmt1(z.lo) + " km/h" : fmt1(z.lo).replace(",0", "") + "–" + fmt1(z.hi).replace(",0", "") + " km/h";
-      const color = i === 4 ? "var(--sprint)" : `var(--z${i + 1})`;
-      return `<div class="zone"><div class="name">${z.name}<small>${range}</small></div>
-        <div class="track"><div class="fill" style="width:${(z.m / max * 100).toFixed(1)}%;background:${color}"></div></div>
-        <div class="val tnum">${fmt0(z.m)} m<small>${fmt0(z.m / total * 100)} %</small></div></div>`;
-    }).join("");
+    const total = a.zones.reduce((s, z) => s + z.m, 0) || 1;
+    zoneBars($("zones"), a.zones.map((z, i) => ({ name: z.name,
+      range: z.hi === Infinity ? "+" + fmt1(z.lo) + " km/h" : fmt1(z.lo).replace(",0", "") + "–" + fmt1(z.hi).replace(",0", "") + " km/h",
+      val: z.m, label: fmt0(z.m) + " m", sub: fmt0(z.m / total * 100) + " %", color: i === 4 ? "var(--sprint)" : `var(--z${i + 1})` })));
   }
 
   function renderSprints(a) {
@@ -641,57 +949,56 @@ details[open] > summary::after { content: "–"; }
       + (top.length > 10 ? `<li><p class="empty">Y ${top.length - 10} más.</p></li>` : "");
   }
 
-  // Gráfica de velocidad (SVG, una sola serie + franjas de sprint)
-  function renderChart() {
-    const box = $("chart"); if (!current) return;
-    const { tr, a } = current; const { t, s } = tr;
+  // Gráfica de línea (SVG, una sola serie) con línea de umbral, franjas opcionales y tooltip
+  function lineChart(box, o) {
     const W = Math.max(280, box.clientWidth || 500), H = 220, L = 34, R = 10, T = 12, B = 26;
+    const { pts, tMax, yMin, yMax, yStep } = o;
+    const X = (v) => L + v / tMax * (W - L - R), Y = (v) => T + (1 - (v - yMin) / (yMax - yMin)) * (H - T - B);
+    let g = "", ax = "";
+    for (let v = yMin; v <= yMax; v += yStep) { g += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}"/>`; ax += `<text x="${L - 6}" y="${Y(v) + 4}" text-anchor="end">${v}</text>`; }
+    const step = tMax > 5400 ? 1800 : tMax > 1800 ? 900 : 300;
+    for (let v = 0; v <= tMax; v += step) ax += `<text x="${X(v)}" y="${H - 6}" text-anchor="middle">${Math.round(v / 60)}′</text>`;
+    let bands = ""; for (const [a0, a1] of o.bands || []) bands += `<rect class="band" x="${X(a0)}" y="${T}" width="${Math.max(2, X(a1) - X(a0))}" height="${H - T - B}"/>`;
+    let d = ""; pts.forEach((b, i) => { d += (i === 0 || b.gap ? "M" : "L") + X(b.t).toFixed(1) + " " + Y(b.v).toFixed(1); });
+    box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${o.aria}">
+      <g class="grid">${g}</g>${bands}
+      <line class="thr" x1="${L}" x2="${W - R}" y1="${Y(o.thr)}" y2="${Y(o.thr)}"/>
+      <text class="thr-label" x="${W - R - 4}" y="${Y(o.thr) - 5}" text-anchor="end">${o.thrLabel}</text>
+      <path class="line" d="${d}"/>${o.peak ? `<circle class="peak" cx="${X(o.peak.t)}" cy="${Y(o.peak.v)}" r="4.5"/>` : ""}<g class="axis">${ax}</g>
+      <line class="cross" y1="${T}" y2="${H - B}" visibility="hidden"/><circle class="dot" r="4.5" visibility="hidden"/>
+    </svg><div class="tip" hidden></div>`;
+    const svg = box.querySelector("svg"), cross = box.querySelector(".cross"), dot = box.querySelector(".dot"), tip = box.querySelector(".tip");
+    const move = (ev) => {
+      const r = svg.getBoundingClientRect(); const tv = ((ev.clientX - r.left) * (W / r.width) - L) / (W - L - R) * tMax;
+      let best = pts[0], bd = Infinity; for (const b of pts) { const dd = Math.abs(b.t - tv); if (dd < bd) { bd = dd; best = b; } }
+      const cx = X(best.t), cy = Y(best.v);
+      cross.setAttribute("x1", cx); cross.setAttribute("x2", cx); cross.setAttribute("visibility", "visible");
+      dot.setAttribute("cx", cx); dot.setAttribute("cy", cy); dot.setAttribute("visibility", "visible");
+      tip.hidden = false; tip.textContent = o.tipFmt(best);
+      tip.style.left = Math.min(r.width - 80, Math.max(80, cx / W * r.width)) + "px";
+    };
+    const leave = () => { cross.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); tip.hidden = true; };
+    svg.addEventListener("pointermove", move); svg.addEventListener("pointerdown", move); svg.addEventListener("pointerleave", leave);
+  }
+
+  function renderChart() {
+    if (!current || !current.tr) return;
+    const { tr, a } = current; const { t, s } = tr;
     const bk = []; // medias de 5 s
     for (let i = 0; i < t.length;) {
       const b0 = Math.floor(t[i] / 5); let sum = 0, c = 0, j = i;
       while (j < t.length && Math.floor(t[j] / 5) === b0) { sum += s[j]; c++; j++; }
       bk.push({ t: b0 * 5 + 2.5, v: sum / c, gap: i > 0 && t[i] - t[i - 1] > 30 }); i = j;
     }
-    const tMax = t[t.length - 1] || 1; const thr = state.settings.sprint;
-    const yMax = Math.ceil((Math.max(a.vmax, thr) + 2) / 5) * 5;
-    const X = (v) => L + v / tMax * (W - L - R), Y = (v) => T + (1 - v / yMax) * (H - T - B);
-    let g = "";
-    for (let v = 0; v <= yMax; v += yMax > 30 ? 10 : 5) g += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}"/>`;
-    let ax = "";
-    for (let v = 0; v <= yMax; v += yMax > 30 ? 10 : 5) ax += `<text x="${L - 6}" y="${Y(v) + 4}" text-anchor="end">${v}</text>`;
-    const step = tMax > 5400 ? 1800 : tMax > 1800 ? 900 : 300;
-    for (let v = 0; v <= tMax; v += step) ax += `<text x="${X(v)}" y="${H - 6}" text-anchor="middle">${Math.round(v / 60)}′</text>`;
-    let bands = "";
-    for (const sp of a.sprints) { const x0 = X(t[sp.i0]), x1 = X(t[sp.i1] + 1); bands += `<rect class="band" x="${x0}" y="${T}" width="${Math.max(2, x1 - x0)}" height="${H - T - B}"/>`; }
-    let d = "";
-    bk.forEach((b, i) => { d += (i === 0 || b.gap ? "M" : "L") + X(b.t).toFixed(1) + " " + Y(b.v).toFixed(1); });
-    const peak = `<circle class="peak" cx="${X(t[a.vmaxAt])}" cy="${Y(a.vmax)}" r="4.5"/>`;
-    box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Velocidad a lo largo del partido. Máxima ${fmt1(a.vmax)} km/h.">
-      <g class="grid">${g}</g>${bands}
-      <line class="thr" x1="${L}" x2="${W - R}" y1="${Y(thr)}" y2="${Y(thr)}"/>
-      <text class="thr-label" x="${W - R - 4}" y="${Y(thr) - 5}" text-anchor="end">Sprint ≥ ${fmt1(thr)} km/h</text>
-      <path class="line" d="${d}"/>${peak}<g class="axis">${ax}</g>
-      <line class="cross" id="cross" y1="${T}" y2="${H - B}" visibility="hidden"/><circle class="dot" id="cdot" r="4.5" visibility="hidden"/>
-      <rect id="hit" x="${L}" y="0" width="${W - L - R}" height="${H}" fill="transparent"/>
-    </svg><div class="tip" id="tip" hidden></div>`;
-    const svg = box.querySelector("svg"), cross = $("cross"), dot = $("cdot"), tip = $("tip");
-    const move = (ev) => {
-      const r = svg.getBoundingClientRect(); const px = (ev.clientX - r.left) * (W / r.width);
-      const tv = (px - L) / (W - L - R) * tMax; let best = bk[0], bd = Infinity;
-      for (const b of bk) { const dd = Math.abs(b.t - tv); if (dd < bd) { bd = dd; best = b; } }
-      const cx = X(best.t), cy = Y(best.v);
-      cross.setAttribute("x1", cx); cross.setAttribute("x2", cx); cross.setAttribute("visibility", "visible");
-      dot.setAttribute("cx", cx); dot.setAttribute("cy", cy); dot.setAttribute("visibility", "visible");
-      tip.hidden = false; tip.textContent = `Min ${mmss(best.t)} · ${fmt1(best.v)} km/h`;
-      const left = cx / W * r.width; tip.style.left = Math.min(r.width - 70, Math.max(70, left)) + "px";
-    };
-    const leave = () => { cross.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); tip.hidden = true; };
-    svg.addEventListener("pointermove", move); svg.addEventListener("pointerdown", move); svg.addEventListener("pointerleave", leave);
+    const thr = state.settings.sprint;
+    lineChart($("chart"), { pts: bk, tMax: t[t.length - 1] || 1, yMin: 0, yMax: Math.ceil((Math.max(a.vmax, thr) + 2) / 5) * 5, yStep: a.vmax + 2 > 30 ? 10 : 5,
+      thr, thrLabel: `Sprint ≥ ${fmt1(thr)} km/h`, bands: a.sprints.map((sp) => [t[sp.i0], t[sp.i1] + 1]), peak: { t: t[a.vmaxAt], v: a.vmax },
+      tipFmt: (b) => `Min ${mmss(b.t)} · ${fmt1(b.v)} km/h`, aria: `Velocidad a lo largo del partido. Máxima ${fmt1(a.vmax)} km/h.` });
   }
 
   // Mapa de calor sobre un campo orientativo
   function renderHeat() {
-    const cv = $("heat"); if (!current) return;
+    const cv = $("heat"); if (!current || !current.tr) return;
     const { tr, a } = current;
     if (!tr.x) { $("heatCard").hidden = true; return; }
     const idx = []; for (let i = 0; i < tr.x.length; i++) if (tr.x[i] != null) idx.push(i);
@@ -760,7 +1067,7 @@ details[open] > summary::after { content: "–"; }
     const sums = list.map((s) => ({ s, m: summary(s) }));
     el.innerHTML = sums.map(({ s, m }) => `<li><button class="row" type="button" data-id="${s.id}" aria-current="${s.id === state.sel}">
       <div><div class="t"></div><div class="d">${fDate(s.date)}${s.type === "entreno" ? " · entreno" : ""}</div></div>
-      <div class="nums tnum"><b>${fmt2(m.dist / 1000)} km</b><br>${m.vmax != null ? fmt1(m.vmax) + " km/h" : "–"} · ${m.sprints != null ? m.sprints + " spr." : "–"}</div></button></li>`).join("");
+      <div class="nums tnum"><b>${fmt2(m.dist / 1000)} km</b><br>${m.steps != null ? fmt0(m.steps) + " pasos" : (m.vmax != null ? fmt1(m.vmax) + " km/h" : "–") + " · " + (m.sprints != null ? m.sprints + " spr." : "–")}</div></button></li>`).join("");
     el.querySelectorAll(".t").forEach((n, i) => { n.textContent = sums[i].s.name; });
     const best = (key) => sums.filter((x) => x.m[key] != null).sort((p, q) => q.m[key] - p.m[key])[0];
     const bD = best("dist"), bV = best("vmax"), bS = best("sprints");
@@ -783,11 +1090,12 @@ details[open] > summary::after { content: "–"; }
   const thrChange = () => {
     let hi = parseFloat($("thrHi").value), sp = parseFloat($("thrSp").value);
     if (!(hi >= 10 && hi <= 30)) hi = 18; if (!(sp >= 12 && sp <= 35)) sp = 21; if (hi > sp) hi = sp;
-    state.settings = { hi, sprint: sp }; save(); render();
+    state.settings = Object.assign(state.settings, { hi, sprint: sp }); save(); render();
   };
+  $("hrMaxIn").addEventListener("change", () => { let v = parseInt($("hrMaxIn").value, 10); if (!(v >= 140 && v <= 230)) v = 190; state.settings.hrMax = v; save(); render(); });
   $("thrHi").addEventListener("change", thrChange); $("thrSp").addEventListener("change", thrChange);
   $("showSprints").addEventListener("change", renderHeat);
-  let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { renderChart(); renderHeat(); }, 150); });
+  let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { renderChart(); renderHeat(); renderHr(); }, 150); });
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderHeat);
 
   $("exportBtn").addEventListener("click", () => {
