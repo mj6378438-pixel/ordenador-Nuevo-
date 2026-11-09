@@ -319,6 +319,7 @@ details[open] > summary::after { content: "–"; }
     <h2 id="hist-h">Historial</h2>
     <div class="records" id="records"></div>
     <ul class="list" id="hist"></ul>
+    <p class="sub" id="cloud" style="font-size:.82rem">Tus partidos se guardan en este móvil. Haz de vez en cuando una copia.</p>
     <div class="foot">
       <button class="btn small" id="exportBtn" type="button">Guardar copia</button>
       <label class="btn small">Cargar copia<input id="importFile" type="file" accept=".json,application/json"></label>
@@ -343,9 +344,59 @@ details[open] > summary::after { content: "–"; }
   let state = { sessions: [], settings: { hi: 18, sprint: 21 }, sel: null };
   try { const s = JSON.parse(localStorage.getItem(KEY) || "null"); if (s && Array.isArray(s.sessions)) state = Object.assign(state, s); } catch (e) {}
   state.settings = Object.assign({ hi: 18, sprint: 21, hrMax: 190 }, state.settings);
+  function saveLocal() { try { localStorage.setItem(KEY, JSON.stringify(state)); return true; } catch (e) { return false; } }
   function save() {
-    try { localStorage.setItem(KEY, JSON.stringify(state)); return true; }
-    catch (e) { setStatus("El móvil se ha quedado sin espacio para guardar más partidos. Pulsa “Guardar copia” y borra alguno antiguo.", true); return false; }
+    const ok = saveLocal(); sync();
+    if (!ok && !remote) setStatus("El móvil se ha quedado sin espacio para guardar más partidos. Pulsa “Guardar copia” y borra alguno antiguo.", true);
+    return ok;
+  }
+
+  // ---------- Guardado en tu cuenta (cuando la app se abre desde Claude) ----------
+  // Cada partido es un documento privado en data/users/<tu id>/; el móvil guarda además una copia para abrir al instante.
+  let remote = null; const synced = new Map(); let settingsSig = "";
+  const sig = (x) => [x.name, x.type, x.date].join("|");
+  let syncing = Promise.resolve();
+  function sync() {
+    if (!remote) return;
+    syncing = syncing.then(async () => {
+      const now = new Set();
+      for (const x of state.sessions) {
+        now.add(x.id);
+        if (synced.get(x.id) === sig(x)) continue;
+        try { await remote.col.doc(x.id).set(fitDoc(x)); synced.set(x.id, sig(x)); }
+        catch (e) { if (e && e.code === "quota_exceeded") setStatus("Tu espacio en Claude está lleno. Borra algún partido antiguo.", true); }
+      }
+      for (const id of [...synced.keys()]) if (!now.has(id)) { try { await remote.col.doc(id).delete(); synced.delete(id); } catch (e) {} }
+      const ss = JSON.stringify(state.settings);
+      if (ss !== settingsSig) { try { await remote.col.doc("ajustes").set(Object.assign({}, state.settings)); settingsSig = ss; } catch (e) {} }
+    });
+  }
+  function fitDoc(x) { // un documento admite hasta 256 KB
+    let d = JSON.parse(JSON.stringify(x));
+    if (JSON.stringify(d).length > 240000 && d.track) {
+      if (d.track.x) { d.track.x = d.track.x.map((v) => v == null ? null : Math.round(v)); d.track.y = d.track.y.map((v) => v == null ? null : Math.round(v)); }
+      if (JSON.stringify(d).length > 240000) d.track.hr = null;
+    }
+    return d;
+  }
+  async function connectRemote() {
+    try {
+      if (!window.claude || typeof window.claude.use !== "function") return;
+      const [db, user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
+      if (!db || !user) return;
+      const uid = await user.id(); if (!uid) return;
+      const col = db.collection("data/users/" + uid);
+      const snap = await Promise.race([col.get(), new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 10000))]);
+      const rs = []; let rset = null;
+      for (const d of snap.docs) { const v = d.data(); if (!v) continue; if (d.id === "ajustes") rset = v; else if (v.id) rs.push(JSON.parse(JSON.stringify(v))); }
+      remote = { col };
+      for (const x of rs) synced.set(x.id, sig(x));
+      const ids = new Set(rs.map((x) => x.id));
+      state.sessions = rs.concat(state.sessions.filter((x) => !ids.has(x.id)));
+      if (rset) { state.settings = Object.assign(state.settings, rset); settingsSig = JSON.stringify(state.settings); }
+      saveLocal(); sync(); render();
+      $("cloud").textContent = "Tus partidos se guardan en tu cuenta de Claude: los verás también en otros dispositivos.";
+    } catch (e) { /* sin cuenta: se queda solo en este móvil */ }
   }
   function setStatus(msg, err) { const el = $("status"); el.textContent = msg || ""; el.classList.toggle("err", !!err); }
 
@@ -1083,8 +1134,11 @@ details[open] > summary::after { content: "–"; }
   const selSess = () => state.sessions.find((s) => s.id === state.sel);
   $("sName").addEventListener("change", (e) => { const s = selSess(); if (s) { s.name = e.target.value.trim() || "Partido"; save(); renderHistory(); } });
   $("sType").addEventListener("change", (e) => { const s = selSess(); if (s) { s.type = e.target.value; save(); renderHistory(); } });
+  let delArmed = null;
   $("delSess").addEventListener("click", () => {
-    const s = selSess(); if (!s || !confirm(`¿Borrar “${s.name}”?`)) return;
+    const s = selSess(); if (!s) return; const btn = $("delSess");
+    if (delArmed !== s.id) { delArmed = s.id; btn.textContent = "Toca otra vez para borrarlo"; setTimeout(() => { delArmed = null; btn.textContent = "Borrar este partido"; }, 4000); return; }
+    delArmed = null; btn.textContent = "Borrar este partido";
     state.sessions = state.sessions.filter((x) => x !== s); state.sel = null; save(); render(); setStatus("Partido borrado.");
   });
   const thrChange = () => {
@@ -1098,10 +1152,12 @@ details[open] > summary::after { content: "–"; }
   let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { renderChart(); renderHeat(); renderHr(); }, 150); });
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderHeat);
 
-  $("exportBtn").addEventListener("click", () => {
+  $("exportBtn").addEventListener("click", async () => {
     const blob = new Blob([JSON.stringify(state)], { type: "application/json" });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-    a.download = "futbol-gps-copia-" + new Date().toISOString().slice(0, 10) + ".json"; document.body.appendChild(a); a.click();
+    const filename = "futbol-gps-copia-" + new Date().toISOString().slice(0, 10) + ".json";
+    let dl = null; try { if (window.claude && typeof window.claude.use === "function") dl = await window.claude.use("downloads"); } catch (e) {}
+    if (dl) { try { await dl.save({ filename, data: blob }); setStatus("Copia guardada."); } catch (e) { if (!e || e.code !== "declined") setStatus("No se pudo guardar la copia.", true); } return; }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   });
   $("importFile").addEventListener("change", async (e) => {
@@ -1114,6 +1170,7 @@ details[open] > summary::after { content: "–"; }
   });
 
   render();
+  connectRemote();
 
   if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
 })();
