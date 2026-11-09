@@ -1,0 +1,16 @@
+{
+  "name": "Fútbol GPS",
+  "short_name": "Fútbol GPS",
+  "description": "Metros, sprints y velocidad máxima de tus partidos, sacados de tu reloj.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f2f5f3",
+  "theme_color": "#1d7a46",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
