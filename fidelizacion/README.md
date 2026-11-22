@@ -11,13 +11,34 @@ tarjeta en su Wallet sin instalar ninguna app, y el dependiente le suma puntos e
 | Fase | Contenido | Estado |
 |------|-----------|--------|
 | 1 | Preparación: proyecto, conexión a Supabase, lista de cuentas | ✅ |
-| 2 | Base de datos y login del personal | ⏳ |
+| 2 | Base de datos y login del personal | ✅ |
 | 3 | Página de alta + Google Wallet | ⏳ |
 | 4 | Apple Wallet (`.pkpass` + servicio web de PassKit) | ⏳ |
 | 5 | Panel del dependiente con escáner | ⏳ |
 | 6 | Actualizaciones en directo (APNs + PATCH de Google) | ⏳ |
 | 7 | Panel del dueño | ⏳ |
 | 8 | Superadmin y multi-negocio completo | ⏳ |
+
+## Cómo funcionan los premios
+
+Cada negocio elige su regla en `loyalty_programs`:
+
+| Tipo | Qué pasa |
+|------|----------|
+| **Premio de una vez** (`one_time`) | Al llegar a N visitas, el cliente tiene X% de descuento. El dependiente lo aplica y el contador vuelve a empezar (si llevaba visitas de más, se conservan). |
+| **Nivel permanente** (`permanent`) | A partir de N visitas, el cliente tiene X% **siempre**. |
+
+- **Máximo una visita al día** por tarjeta. Lo impide la propia base de datos, según la zona horaria del negocio.
+- Las visitas **no caducan**.
+- No se puede escanear la misma tarjeta más de 5 veces por minuto.
+- Las visitas y los canjes solo se registran mediante las funciones `scan_card`, `register_visit` y `redeem_reward`. Estas comprueban que quien lo hace es personal de ese negocio y anotan quién lo hizo.
+
+## Base de datos
+
+1. Supabase → **SQL Editor** → *New query* → pega `supabase/migrations/0001_esquema_inicial.sql` → **Run**.
+2. Crea tu usuario en **Authentication → Users → Add user** (marca *Auto Confirm User*).
+3. Abre `supabase/demo.sql`, cambia el email de la primera línea por el tuyo, pégalo en el SQL Editor y pulsa **Run**.
+   Así serás superadmin y dueño del negocio de demostración «Café La Esquina», con 5 clientes de ejemplo.
 
 ## Qué cuentas hay que crear
 
@@ -78,9 +99,15 @@ prefijo a una clave secreta.
 fidelizacion/
 ├── docs/CUENTAS.md        Lista de cuentas y certificados a registrar
 ├── scripts/a-base64.mjs   Convierte certificados a base64
+├── supabase/
+│   ├── migrations/        Esquema de la base de datos (tablas, RLS, lógica de puntos)
+│   └── demo.sql           Tu cuenta de superadmin + negocio de demostración
 ├── src/app/               Páginas (App Router)
+│   ├── entrar/            Login del personal
+│   ├── panel/             Panel (requiere sesión)
 │   └── estado/            Comprobación de la configuración (sin mostrar valores)
 └── src/lib/
+    ├── auth.ts            Usuario actual y sus negocios
     ├── env.ts             Lectura de variables de entorno
     └── supabase/          Clientes de Supabase (navegador, servidor y admin)
 ```

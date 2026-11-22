@@ -13,7 +13,7 @@ export default function Home() {
       <header className="flex items-center justify-between">
         <span className="font-display text-lg font-bold tracking-tight">{appName}</span>
         <span className="rounded-full border border-line px-3 py-1 text-xs text-muted">
-          Versión en construcción · Fase 1
+          Versión en construcción · Fase 2
         </span>
       </header>
 
@@ -34,6 +34,12 @@ export default function Home() {
               className="rounded-xl bg-accent px-5 py-3 font-semibold text-accent-ink"
             >
               Ver estado de la configuración
+            </Link>
+            <Link
+              href="/entrar"
+              className="rounded-xl border border-line bg-surface px-5 py-3 font-semibold"
+            >
+              Acceso del personal
             </Link>
           </div>
         </div>
