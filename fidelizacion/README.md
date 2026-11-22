@@ -12,12 +12,22 @@ tarjeta en su Wallet sin instalar ninguna app, y el dependiente le suma puntos e
 |------|-----------|--------|
 | 1 | Preparación: proyecto, conexión a Supabase, lista de cuentas | ✅ |
 | 2 | Base de datos y login del personal | ✅ |
-| 3 | Página de alta + Google Wallet | ⏳ |
+| 3 | Página de alta + Google Wallet | ✅ |
 | 4 | Apple Wallet (`.pkpass` + servicio web de PassKit) | ⏳ |
 | 5 | Panel del dependiente con escáner | ⏳ |
 | 6 | Actualizaciones en directo (APNs + PATCH de Google) | ⏳ |
 | 7 | Panel del dueño | ⏳ |
 | 8 | Superadmin y multi-negocio completo | ⏳ |
+
+## Alta del cliente
+
+El QR del mostrador lleva a `/c/<negocio>` (p. ej. `/c/cafe-la-esquina`). El cliente pone su
+nombre, su **email (obligatorio)**, su teléfono (opcional), acepta la privacidad y, si quiere,
+marca la casilla de ofertas. Al terminar ve su tarjeta y el botón de su Wallet:
+Google Wallet en Android, y Apple Wallet en iPhone (desde la Fase 4).
+
+Si el email ya tiene tarjeta, solo se la enseñamos en el mismo móvil en el que se dio de alta.
+Así nadie puede ver la tarjeta de otro escribiendo su email.
 
 ## Cómo funcionan los premios
 
@@ -37,7 +47,8 @@ Cada negocio elige su regla en `loyalty_programs`:
 
 1. Supabase → **SQL Editor** → *New query* → pega `supabase/migrations/0001_esquema_inicial.sql` → **Run**.
 2. Crea tu usuario en **Authentication → Users → Add user** (marca *Auto Confirm User*).
-3. Abre `supabase/demo.sql`, cambia el email de la primera línea por el tuyo, pégalo en el SQL Editor y pulsa **Run**.
+3. Haz lo mismo con `supabase/migrations/0002_email_obligatorio.sql`.
+4. Abre `supabase/demo.sql`, cambia el email de la primera línea por el tuyo, pégalo en el SQL Editor y pulsa **Run**.
    Así serás superadmin y dueño del negocio de demostración «Café La Esquina», con 5 clientes de ejemplo.
 
 ## Qué cuentas hay que crear
@@ -46,7 +57,7 @@ Ver **[docs/CUENTAS.md](docs/CUENTAS.md)**: paso a paso, con dónde se hace y qu
 
 ## Instalación en local
 
-Requisitos: [Node.js](https://nodejs.org) 20 o superior.
+Requisitos: [Node.js](https://nodejs.org) 22 o superior.
 
 ```bash
 git clone https://github.com/mj6378438-pixel/ordenador-nuevo-.git
@@ -103,12 +114,16 @@ fidelizacion/
 │   ├── migrations/        Esquema de la base de datos (tablas, RLS, lógica de puntos)
 │   └── demo.sql           Tu cuenta de superadmin + negocio de demostración
 ├── src/app/               Páginas (App Router)
+│   ├── c/[slug]/          Página pública del negocio: alta del cliente, su tarjeta y privacidad
 │   ├── entrar/            Login del personal
 │   ├── panel/             Panel (requiere sesión)
 │   └── estado/            Comprobación de la configuración (sin mostrar valores)
 └── src/lib/
     ├── auth.ts            Usuario actual y sus negocios
     ├── env.ts             Lectura de variables de entorno
+    ├── loyalty.ts         Reglas y textos de progreso («te faltan 3 visitas…»)
+    ├── cards.ts           Lectura de negocios y tarjetas
+    ├── wallet/google.ts   Enlace «Añadir a Google Wallet» (JWT firmado)
     └── supabase/          Clientes de Supabase (navegador, servidor y admin)
 ```
 
@@ -120,3 +135,4 @@ fidelizacion/
 | `npm run build` | Compila para producción |
 | `npm run lint` | Revisa el código |
 | `npm run typecheck` | Comprueba los tipos de TypeScript |
+| `npm test` | Pasa las pruebas automáticas |

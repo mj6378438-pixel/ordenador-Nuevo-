@@ -52,8 +52,10 @@ Son dos sitios distintos: la **consola de Google Wallet** (la cuenta de emisor) 
 2. Menú *Google Wallet API* → acepta las condiciones y crea el emisor (*issuer*).
 3. Copia el **Issuer ID** (un número largo) → `GOOGLE_WALLET_ISSUER_ID`.
 4. Al principio estaréis en **modo demo**: las tarjetas solo funcionan para los usuarios de
-   prueba que añadáis (perfecto para el local de prueba). Para el público hay que pedir
-   *publishing access* más adelante; os aviso cuando toque.
+   prueba que añadáis (perfecto para el local de prueba). En la consola: *Google Wallet API →
+   Usuarios de prueba* (o *Test users*) → añadid las cuentas de Gmail de los móviles Android
+   con los que vayáis a probar. Para el público hay que pedir *publishing access* más
+   adelante; os aviso cuando toque.
 
 **b) Cuenta de servicio en Google Cloud**
 1. Entra en **https://console.cloud.google.com** → crea un proyecto (`fidelizacion-wallet`).
