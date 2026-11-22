@@ -1,4 +1,5 @@
 "use server";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
 export type ScanResult =
@@ -18,7 +19,7 @@ export type ScanResult =
       discount_percent: number;
       reward_description: string;
     }
-  | { ok: false; error: "not_found" | "rate_limited" | "session" | "unknown" };
+  | { ok: false; error: "not_found" | "rate_limited" | "suspended" | "session" | "unknown" };
 
 export type RedeemResult =
   | {
@@ -29,7 +30,7 @@ export type RedeemResult =
       visits_current: number;
       visits_remaining: number;
     }
-  | { ok: false; error: "no_reward" | "not_found" | "session" | "unknown" };
+  | { ok: false; error: "no_reward" | "not_found" | "suspended" | "session" | "unknown" };
 
 /** Escanear = buscar la tarjeta y sumar la visita del día (si no la tenía ya). */
 export async function scanAction(token: string): Promise<ScanResult> {
@@ -52,4 +53,21 @@ export async function redeemAction(cardId: string): Promise<RedeemResult> {
   const { data, error } = await supabase.rpc("redeem_reward", { p_card_id: cardId });
   if (error || !data) return { ok: false, error: "unknown" };
   return data as RedeemResult;
+}
+
+/** Acciones del superadmin sobre la suscripción de un negocio. */
+export async function adminSubscriptionAction(
+  businessId: string,
+  action: "pay_month" | "extend_trial" | "block" | "unblock",
+) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_subscription", {
+    p_business: businessId,
+    p_action: action,
+  });
+  if (error || !(data as { ok?: boolean } | null)?.ok) {
+    return { ok: false as const };
+  }
+  revalidatePath("/panel/admin");
+  return { ok: true as const };
 }

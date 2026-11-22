@@ -3,6 +3,7 @@ import { getCurrentStaff } from "@/lib/auth";
 import Link from "next/link";
 import { signOut } from "@/app/entrar/actions";
 import { InstallApp } from "@/components/install-app";
+import { fmtDate } from "@/lib/subscription";
 
 export const metadata = { title: "Panel" };
 
@@ -35,12 +36,33 @@ async function PanelContent() {
       </header>
 
       {me.isPlatformAdmin && (
-        <p className="mt-4 inline-block rounded-full bg-foreground px-3 py-1 text-xs font-semibold text-background">
-          Superadmin
-        </p>
+        <Link
+          href="/panel/admin"
+          className="mt-4 flex items-center justify-between rounded-2xl bg-foreground px-5 py-4 font-semibold text-background"
+        >
+          Superadmin · negocios y pagos <span aria-hidden>→</span>
+        </Link>
       )}
 
-      {me.memberships.length > 0 && (
+      {me.memberships.map((m) =>
+        !m.service.ok ? (
+          <div key={m.businessId} className="mt-4 rounded-2xl border-2 border-accent bg-accent/10 p-5">
+            <p className="font-semibold text-accent">Servicio suspendido · {m.businessName}</p>
+            <p className="mt-1 text-sm">
+              Hay un pago pendiente. No se pueden escanear tarjetas ni dar de alta clientes hasta
+              regularizarlo. Las tarjetas de tus clientes no se pierden.
+            </p>
+          </div>
+        ) : m.service.tone === "warn" && m.role === "owner" && m.service.until ? (
+          <div key={m.businessId} className="mt-4 rounded-2xl border border-warn/50 bg-warn/10 p-4 text-sm">
+            {m.service.label === "En prueba"
+              ? `Periodo de prueba gratis de ${m.businessName} hasta el ${fmtDate(m.service.until)}.`
+              : `Pago pendiente en ${m.businessName}. El servicio se cortará el ${fmtDate(m.service.until)}.`}
+          </div>
+        ) : null,
+      )}
+
+      {me.memberships.some((m) => m.service.ok) && (
         <Link
           href="/panel/escanear"
           className="mt-6 flex items-center justify-center gap-3 rounded-3xl bg-accent px-6 py-7 font-display text-2xl font-extrabold text-accent-ink shadow-lg shadow-accent/25"

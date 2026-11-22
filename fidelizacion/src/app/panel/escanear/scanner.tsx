@@ -22,6 +22,8 @@ type Phase =
 const errorText: Record<string, string> = {
   not_found: "Esta tarjeta no es de tu negocio o no existe.",
   rate_limited: "Esta tarjeta se ha escaneado muchas veces seguidas. Espera un minuto.",
+  suspended:
+    "Servicio suspendido: este negocio tiene un pago pendiente. El dueño debe ponerse en contacto con nosotros.",
   session: "Tu sesión ha caducado. Vuelve a entrar.",
   unknown: "Algo ha fallado. Inténtalo otra vez.",
   no_reward: "Este cliente todavía no tiene descuento.",

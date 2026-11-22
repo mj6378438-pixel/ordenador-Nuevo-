@@ -51,7 +51,10 @@ export async function registerCustomer(
     return { error: "Algo ha fallado. Inténtalo de nuevo en un momento.", values };
   }
 
-  const result = data as { status: "created" | "exists" | "no_business"; token?: string };
+  const result = data as { status: "created" | "exists" | "no_business" | "suspended"; token?: string };
+  if (result.status === "suspended") {
+    return { error: "Las tarjetas de este negocio no están disponibles ahora mismo. Pregunta en el mostrador.", values };
+  }
   if (result.status === "no_business") {
     return { error: "Este negocio no está disponible.", values };
   }

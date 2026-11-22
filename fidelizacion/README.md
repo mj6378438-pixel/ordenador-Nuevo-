@@ -55,11 +55,27 @@ Cada negocio elige su regla en `loyalty_programs`:
 
 ## Base de datos
 
-1. Supabase → **SQL Editor** → *New query* → pega `supabase/migrations/0001_esquema_inicial.sql` → **Run**.
+**Proyecto nuevo:**
+1. Supabase → **SQL Editor** → *New query* → pega `supabase/INSTALAR-TODO.sql` → **Run**.
 2. Crea tu usuario en **Authentication → Users → Add user** (marca *Auto Confirm User*).
-3. Haz lo mismo con `supabase/migrations/0002_email_obligatorio.sql` y con `0003_escanear_y_sumar.sql`, en ese orden.
-4. Abre `supabase/demo.sql`, cambia el email de la primera línea por el tuyo, pégalo en el SQL Editor y pulsa **Run**.
+3. Abre `supabase/demo.sql`, cambia el email de la primera línea por el tuyo, pégalo en el SQL Editor y pulsa **Run**.
    Así serás superadmin y dueño del negocio de demostración «Café La Esquina», con 5 clientes de ejemplo.
+
+**Proyecto que ya tenía la base de datos:** ejecuta solo las migraciones nuevas de
+`supabase/migrations/`, en orden. `INSTALAR-TODO.sql` se regenera con `npm run unir-sql`.
+
+## Suscripciones y bloqueo por impago
+
+Cada negocio tiene un estado: **en prueba** (30 días gratis al crearlo), **al día**, **pago
+pendiente** o **bloqueado**. Si no está al día (y han pasado los **7 días de margen**):
+
+- el personal **no puede escanear**, sumar visitas ni aplicar descuentos;
+- **no se pueden dar de alta** clientes nuevos;
+- las tarjetas de los clientes **siguen en su Wallet**: al pagar, todo vuelve a funcionar al instante.
+
+Lo controla la base de datos (`service_ok`), así que no se puede saltar desde la app. Ni el dueño
+puede cambiar su propio estado: solo un superadmin, desde **/panel/admin** (+1 mes pagado,
++14 días de prueba, bloquear, desbloquear). Con Stripe (más adelante) se hará solo.
 
 ## Qué cuentas hay que crear
 
@@ -122,12 +138,14 @@ fidelizacion/
 ├── scripts/a-base64.mjs   Convierte certificados a base64
 ├── supabase/
 │   ├── migrations/        Esquema de la base de datos (tablas, RLS, lógica de puntos)
+│   ├── INSTALAR-TODO.sql  Todas las migraciones juntas, para un proyecto nuevo
 │   └── demo.sql           Tu cuenta de superadmin + negocio de demostración
 ├── src/app/               Páginas (App Router)
 │   ├── c/[slug]/          Página pública del negocio: alta del cliente, su tarjeta y privacidad
 │   ├── entrar/            Login del personal
 │   ├── panel/             App del personal (requiere sesión)
-│   │   └── escanear/      Escáner: suma la visita y aplica el descuento
+│   │   ├── escanear/      Escáner: suma la visita y aplica el descuento
+│   │   └── admin/         Superadmin: negocios, pagos y bloqueo
 │   ├── instalar/          Instrucciones para instalar la app
 │   ├── manifest.ts        Lo que la hace instalable (nombre, icono, pantalla completa)
 │   └── estado/            Comprobación de la configuración (sin mostrar valores)
@@ -149,3 +167,4 @@ fidelizacion/
 | `npm run lint` | Revisa el código |
 | `npm run typecheck` | Comprueba los tipos de TypeScript |
 | `npm test` | Pasa las pruebas automáticas |
+| `npm run unir-sql` | Regenera `supabase/INSTALAR-TODO.sql` |

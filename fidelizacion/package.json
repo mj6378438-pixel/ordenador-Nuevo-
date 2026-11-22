@@ -9,7 +9,8 @@
     "lint": "eslint",
     "a-base64": "node scripts/a-base64.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "unir-sql": "node scripts/unir-sql.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
