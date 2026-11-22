@@ -13,11 +13,11 @@ tarjeta en su Wallet sin instalar ninguna app, y el dependiente le suma puntos e
 | 1 | Preparación: proyecto, conexión a Supabase, lista de cuentas | ✅ |
 | 2 | Base de datos y login del personal | ✅ |
 | 3 | Página de alta + Google Wallet | ✅ |
-| 4 | Apple Wallet (`.pkpass` + servicio web de PassKit) | ⏳ |
+| 4 | Apple Wallet (`.pkpass` + servicio web de PassKit) | ✅ Programado · se activa con las claves de Apple ([docs/APPLE.md](docs/APPLE.md)) |
 | 5 | App del personal con escáner | ✅ |
-| 6 | Actualizaciones en directo (APNs + PATCH de Google) | ⏳ |
-| 7 | Panel del dueño | ⏳ |
-| 8 | Superadmin y multi-negocio completo | ⏳ |
+| 6 | Actualizaciones en directo (APNs + PATCH de Google) | ✅ |
+| 7 | Panel del dueño | ✅ |
+| 8 | Superadmin y multi-negocio completo | ✅ Falta Stripe (cobro automático) |
 
 ## Alta del cliente
 
@@ -38,6 +38,33 @@ móvil o la tablet, y luego se abre con su icono, a pantalla completa, como cual
 - Si el cliente tiene descuento, sale un aviso verde grande con el botón **Aplicar descuento**.
   En el premio de una vez, el contador vuelve a empezar.
 - Lee el QR con el lector nativo del móvil cuando existe (Android) y con `jsQR` cuando no (iPhone).
+
+## Tarjetas que se actualizan solas
+
+Después de cada visita, descuento, cambio de diseño o promoción (`src/lib/wallet/sync.ts`,
+lanzado con `after()` para no hacer esperar al camarero):
+
+- **Google Wallet:** se actualiza la tarjeta (PATCH del objeto) y se manda un aviso con
+  notificación (`addMessage`). Solo para tarjetas cuyo enlace se generó (`cards.google_object_id`).
+- **Apple Wallet:** push vacío por APNs (HTTP/2, con el certificado del pase) a los iPhone
+  registrados; el iPhone pide el pase nuevo al servicio web `/api/apple/v1/…`. El aviso sale
+  del campo «Tu premio» (`changeMessage`).
+
+## Panel del dueño (`/panel/n/<id>`)
+
+- **Resumen:** clientes, visitas, descuentos, gráfico de 30 días y últimos movimientos.
+- **Tarjeta:** nombre, logo, colores, tipo de premio, visitas necesarias, % y datos legales, con
+  vista previa en directo.
+- **Clientes:** buscar, borrar con todos sus datos (RGPD) y descargar en CSV los que aceptan ofertas.
+- **Promoción:** mensaje que aparece en todas las tarjetas con notificación.
+- **Personal:** dar acceso a camareros (o a otro dueño) y quitarlo.
+- **QR:** cartel listo para imprimir y QR en PNG.
+
+## Superadmin (`/panel/admin`)
+
+Alta de negocios con su dueño (cuenta, contraseña inicial, días de prueba, cuota mensual y
+cuota de alta), cifras de negocios, pagando, en prueba e ingresos al mes, y los botones de
+cobro y bloqueo.
 
 ## Cómo funcionan los premios
 
@@ -80,6 +107,7 @@ puede cambiar su propio estado: solo un superadmin, desde **/panel/admin** (+1 m
 ## Qué cuentas hay que crear
 
 Ver **[docs/CUENTAS.md](docs/CUENTAS.md)**: paso a paso, con dónde se hace y qué valor copiar.
+Para Apple Wallet: **[docs/APPLE.md](docs/APPLE.md)** (certificado del pase, sin necesidad de Mac).
 
 ## Instalación en local
 
@@ -145,7 +173,9 @@ fidelizacion/
 │   ├── entrar/            Login del personal
 │   ├── panel/             App del personal (requiere sesión)
 │   │   ├── escanear/      Escáner: suma la visita y aplica el descuento
-│   │   └── admin/         Superadmin: negocios, pagos y bloqueo
+│   │   ├── n/[id]/        Panel del dueño: resumen, tarjeta, clientes, promoción, personal, QR
+│   │   └── admin/         Superadmin: alta de negocios, pagos y bloqueo
+│   ├── api/apple/         Servicio web de PassKit y descarga del pase
 │   ├── instalar/          Instrucciones para instalar la app
 │   ├── manifest.ts        Lo que la hace instalable (nombre, icono, pantalla completa)
 │   └── estado/            Comprobación de la configuración (sin mostrar valores)
@@ -154,7 +184,12 @@ fidelizacion/
     ├── env.ts             Lectura de variables de entorno
     ├── loyalty.ts         Reglas y textos de progreso («te faltan 3 visitas…»)
     ├── cards.ts           Lectura de negocios y tarjetas
-    ├── wallet/google.ts   Enlace «Añadir a Google Wallet» (JWT firmado)
+    ├── wallet/
+    │   ├── google.ts      Enlace «Añadir a Google Wallet» (JWT firmado)
+    │   ├── google-api.ts  Actualizar tarjetas y mandar avisos en Google
+    │   ├── apple.ts       Generar el .pkpass firmado
+    │   ├── apns.ts        Avisos push a los iPhone
+    │   └── sync.ts        Qué se actualiza tras cada cambio
     └── supabase/          Clientes de Supabase (navegador, servidor y admin)
 ```
 

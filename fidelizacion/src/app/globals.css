@@ -10,6 +10,7 @@
   --accent-ink: #ffffff;
   --ok: #2f8a4e;
   --warn: #b7791f;
+  --chart: #e2552d;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -23,6 +24,7 @@
     --accent-ink: #14130f;
     --ok: #5cc27f;
     --warn: #e0a84a;
+    --chart: #dc5a34;
   }
 }
 
@@ -36,6 +38,7 @@
   --color-accent-ink: var(--accent-ink);
   --color-ok: var(--ok);
   --color-warn: var(--warn);
+  --color-chart: var(--chart);
   --font-sans: var(--font-body);
   --font-display: var(--font-display);
 }
@@ -44,4 +47,10 @@ body {
   background: var(--background);
   color: var(--foreground);
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Al imprimir (cartel del QR) solo sale lo marcado como imprimible */
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; }
 }

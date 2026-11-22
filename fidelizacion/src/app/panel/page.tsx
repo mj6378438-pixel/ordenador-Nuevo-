@@ -91,7 +91,12 @@ async function PanelContent() {
                 </span>
               </div>
               {m.role === "owner" && (
-                <p className="mt-3 text-sm text-muted">Configuración del negocio · llega en la Fase 7</p>
+                <Link
+                  href={`/panel/n/${m.businessId}`}
+                  className="mt-4 flex items-center justify-between rounded-xl bg-background px-4 py-3 text-sm font-semibold"
+                >
+                  Gestionar: tarjeta, clientes, personal, promociones y QR <span aria-hidden>→</span>
+                </Link>
               )}
             </li>
           ))}

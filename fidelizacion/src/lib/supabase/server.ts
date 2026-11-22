@@ -1,5 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { requireEnv } from "@/lib/env";
@@ -9,6 +10,8 @@ import { requireEnv } from "@/lib/env";
  * Respeta Row Level Security: cada negocio solo ve sus datos.
  */
 export async function createClient() {
+  // Siempre en el momento de la petición: la sesión depende del usuario y de la hora
+  await connection();
   const cookieStore = await cookies();
   return createServerClient(
     requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
