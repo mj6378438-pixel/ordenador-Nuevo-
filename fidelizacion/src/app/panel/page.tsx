@@ -1,6 +1,8 @@
 import { Suspense } from "react";
 import { getCurrentStaff } from "@/lib/auth";
+import Link from "next/link";
 import { signOut } from "@/app/entrar/actions";
+import { InstallApp } from "@/components/install-app";
 
 export const metadata = { title: "Panel" };
 
@@ -38,6 +40,19 @@ async function PanelContent() {
         </p>
       )}
 
+      {me.memberships.length > 0 && (
+        <Link
+          href="/panel/escanear"
+          className="mt-6 flex items-center justify-center gap-3 rounded-3xl bg-accent px-6 py-7 font-display text-2xl font-extrabold text-accent-ink shadow-lg shadow-accent/25"
+        >
+          <span aria-hidden>📷</span> Escanear tarjeta
+        </Link>
+      )}
+
+      <div className="mt-4">
+        <InstallApp compact />
+      </div>
+
       <h2 className="mt-8 text-xs font-semibold uppercase tracking-widest text-muted">Tus negocios</h2>
       {me.memberships.length === 0 ? (
         <p className="mt-3 rounded-2xl border border-line bg-surface p-5 text-muted">
@@ -53,16 +68,9 @@ async function PanelContent() {
                   {roleLabel[m.role]}
                 </span>
               </div>
-              <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-                <span className="rounded-xl bg-background px-3 py-3 text-center text-muted">
-                  Escanear tarjeta · Fase 5
-                </span>
-                {m.role === "owner" && (
-                  <span className="rounded-xl bg-background px-3 py-3 text-center text-muted">
-                    Configurar · Fase 7
-                  </span>
-                )}
-              </div>
+              {m.role === "owner" && (
+                <p className="mt-3 text-sm text-muted">Configuración del negocio · llega en la Fase 7</p>
+              )}
             </li>
           ))}
         </ul>

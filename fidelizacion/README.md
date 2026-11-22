@@ -14,7 +14,7 @@ tarjeta en su Wallet sin instalar ninguna app, y el dependiente le suma puntos e
 | 2 | Base de datos y login del personal | ✅ |
 | 3 | Página de alta + Google Wallet | ✅ |
 | 4 | Apple Wallet (`.pkpass` + servicio web de PassKit) | ⏳ |
-| 5 | Panel del dependiente con escáner | ⏳ |
+| 5 | App del personal con escáner | ✅ |
 | 6 | Actualizaciones en directo (APNs + PATCH de Google) | ⏳ |
 | 7 | Panel del dueño | ⏳ |
 | 8 | Superadmin y multi-negocio completo | ⏳ |
@@ -28,6 +28,16 @@ Google Wallet en Android, y Apple Wallet en iPhone (desde la Fase 4).
 
 Si el email ya tiene tarjeta, solo se la enseñamos en el mismo móvil en el que se dio de alta.
 Así nadie puede ver la tarjeta de otro escribiendo su email.
+
+## App del personal (sin App Store)
+
+Es una **app web instalable** (PWA): desde `/instalar` se añade a la pantalla de inicio del
+móvil o la tablet, y luego se abre con su icono, a pantalla completa, como cualquier app.
+
+- Al **escanear** la tarjeta se apunta la visita sola (si ese día no ha venido ya).
+- Si el cliente tiene descuento, sale un aviso verde grande con el botón **Aplicar descuento**.
+  En el premio de una vez, el contador vuelve a empezar.
+- Lee el QR con el lector nativo del móvil cuando existe (Android) y con `jsQR` cuando no (iPhone).
 
 ## Cómo funcionan los premios
 
@@ -47,7 +57,7 @@ Cada negocio elige su regla en `loyalty_programs`:
 
 1. Supabase → **SQL Editor** → *New query* → pega `supabase/migrations/0001_esquema_inicial.sql` → **Run**.
 2. Crea tu usuario en **Authentication → Users → Add user** (marca *Auto Confirm User*).
-3. Haz lo mismo con `supabase/migrations/0002_email_obligatorio.sql`.
+3. Haz lo mismo con `supabase/migrations/0002_email_obligatorio.sql` y con `0003_escanear_y_sumar.sql`, en ese orden.
 4. Abre `supabase/demo.sql`, cambia el email de la primera línea por el tuyo, pégalo en el SQL Editor y pulsa **Run**.
    Así serás superadmin y dueño del negocio de demostración «Café La Esquina», con 5 clientes de ejemplo.
 
@@ -116,7 +126,10 @@ fidelizacion/
 ├── src/app/               Páginas (App Router)
 │   ├── c/[slug]/          Página pública del negocio: alta del cliente, su tarjeta y privacidad
 │   ├── entrar/            Login del personal
-│   ├── panel/             Panel (requiere sesión)
+│   ├── panel/             App del personal (requiere sesión)
+│   │   └── escanear/      Escáner: suma la visita y aplica el descuento
+│   ├── instalar/          Instrucciones para instalar la app
+│   ├── manifest.ts        Lo que la hace instalable (nombre, icono, pantalla completa)
 │   └── estado/            Comprobación de la configuración (sin mostrar valores)
 └── src/lib/
     ├── auth.ts            Usuario actual y sus negocios

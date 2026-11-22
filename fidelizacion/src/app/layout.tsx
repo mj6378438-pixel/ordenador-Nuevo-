@@ -9,6 +9,8 @@ const body = Figtree({ variable: "--font-body", subsets: ["latin"] });
 export const metadata: Metadata = {
   title: appName,
   description: "Tarjetas de puntos para tu negocio en Apple Wallet y Google Wallet, sin apps.",
+  // Para que en iPhone, al añadirla a la pantalla de inicio, se abra como app
+  appleWebApp: { capable: true, title: "Escanear", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
