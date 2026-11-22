@@ -70,3 +70,36 @@ export function ruleText(program: Program): string {
     ? `A partir de ${plural(program.visits_required, "visita", "visitas")}, ${reward} para siempre`
     : `Cada ${plural(program.visits_required, "visita", "visitas")}, ${reward}`;
 }
+
+export type CardEvent = "visit" | "redeem" | "promo" | "design";
+
+/** Texto de la notificación que recibe el cliente en su móvil. */
+export function noticeFor(event: CardEvent, view: CardView): { header: string; body: string } | null {
+  const { business, program, card } = view;
+  const n = progressVisits(program, card);
+  switch (event) {
+    case "visit":
+      if (hasDiscount(program, card)) {
+        return {
+          header: business.name,
+          body: `¡Enhorabuena! Ya tienes tu ${program.discount_percent}% de descuento ${program.reward_description}.`,
+        };
+      }
+      return {
+        header: business.name,
+        body: `¡+1 visita! Llevas ${n}. ${progressText(program, card)}.`,
+      };
+    case "redeem":
+      return {
+        header: business.name,
+        body:
+          program.reward_type === "one_time"
+            ? `Descuento del ${program.discount_percent}% aplicado. ¡A por el siguiente!`
+            : `Descuento del ${program.discount_percent}% aplicado. ¡Gracias por venir!`,
+      };
+    case "promo":
+      return business.promo_message ? { header: business.name, body: business.promo_message } : null;
+    default:
+      return null;
+  }
+}

@@ -5,7 +5,9 @@ import QRCode from "qrcode";
 import { cardCookie, getCardByToken } from "@/lib/cards";
 import { detectPlatform } from "@/lib/device";
 import { hasDiscount, progressText, progressVisits, type CardView } from "@/lib/loyalty";
-import { googleSaveUrl, googleWalletConfigured } from "@/lib/wallet/google";
+import { createAdminClient } from "@/lib/supabase/server";
+import { appleWalletConfigured } from "@/lib/wallet/apple";
+import { googleSaveUrl, googleWalletConfigured, objectId } from "@/lib/wallet/google";
 
 export const metadata = { title: "Tu tarjeta" };
 
@@ -32,10 +34,17 @@ async function Tarjeta({ params }: { params: PageProps<"/c/[slug]/tarjeta">["par
   if (platform !== "ios" && googleWalletConfigured()) {
     try {
       googleUrl = googleSaveUrl(view);
+      // Anotamos que esta tarjeta puede estar en Google Wallet, para actualizarla luego
+      await createAdminClient()
+        .from("cards")
+        .update({ google_object_id: objectId(process.env.GOOGLE_WALLET_ISSUER_ID!, view.card.id) })
+        .eq("id", view.card.id)
+        .is("google_object_id", null);
     } catch (e) {
       console.error("Google Wallet:", e);
     }
   }
+  const appleReady = appleWalletConfigured();
 
   return (
     <main className="mx-auto w-full max-w-md flex-1 px-4 py-8">
@@ -46,12 +55,20 @@ async function Tarjeta({ params }: { params: PageProps<"/c/[slug]/tarjeta">["par
       <p className="mt-2 text-center text-muted">Guárdala en tu móvil para tenerla siempre a mano.</p>
 
       <div className="mt-6 space-y-3">
-        {platform !== "android" && (
-          <div className="rounded-xl bg-black px-5 py-4 text-center text-white opacity-60">
-             Añadir a Apple Wallet
-            <span className="block text-xs opacity-80">Disponible muy pronto</span>
-          </div>
-        )}
+        {platform !== "android" &&
+          (appleReady ? (
+            <a
+              href={`/api/apple/pase/${slug}`}
+              className="block rounded-xl bg-black px-5 py-4 text-center font-semibold text-white"
+            >
+               Añadir a Apple Wallet
+            </a>
+          ) : (
+            <div className="rounded-xl bg-black px-5 py-4 text-center text-white opacity-60">
+               Añadir a Apple Wallet
+              <span className="block text-xs opacity-80">Disponible muy pronto</span>
+            </div>
+          ))}
         {googleUrl && (
           <a
             href={googleUrl}

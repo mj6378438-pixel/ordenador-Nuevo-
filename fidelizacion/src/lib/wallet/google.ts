@@ -16,7 +16,7 @@ export function googleWalletConfigured() {
   return isSet("GOOGLE_WALLET_ISSUER_ID") && isSet("GOOGLE_WALLET_SERVICE_ACCOUNT_BASE64");
 }
 
-function serviceAccount(): ServiceAccount {
+export function serviceAccount(): ServiceAccount {
   const json = JSON.parse(requireBase64Env("GOOGLE_WALLET_SERVICE_ACCOUNT_BASE64").toString("utf8"));
   if (!json.client_email || !json.private_key) {
     throw new Error("GOOGLE_WALLET_SERVICE_ACCOUNT_BASE64 no contiene un JSON de cuenta de servicio válido.");

@@ -1,5 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { syncCard } from "@/lib/wallet/sync";
 import { createClient } from "@/lib/supabase/server";
 
 export type ScanResult =
@@ -41,7 +43,10 @@ export async function scanAction(token: string): Promise<ScanResult> {
 
   const { data, error } = await supabase.rpc("scan_and_visit", { p_token: token.trim() });
   if (error || !data) return { ok: false, error: "unknown" };
-  return data as ScanResult;
+  const result = data as ScanResult;
+  // Actualiza el Wallet del cliente después de responder (no hace esperar al camarero)
+  if (result.ok && result.visit_added) after(() => syncCard(result.card_id, "visit"));
+  return result;
 }
 
 /** Aplicar el descuento (en premio de una vez, el contador vuelve a empezar). */
@@ -52,7 +57,9 @@ export async function redeemAction(cardId: string): Promise<RedeemResult> {
 
   const { data, error } = await supabase.rpc("redeem_reward", { p_card_id: cardId });
   if (error || !data) return { ok: false, error: "unknown" };
-  return data as RedeemResult;
+  const result = data as RedeemResult;
+  if (result.ok) after(() => syncCard(cardId, "redeem"));
+  return result;
 }
 
 /** Acciones del superadmin sobre la suscripción de un negocio. */
