@@ -1,0 +1,205 @@
+# Tarjetas de fidelización en Apple Wallet y Google Wallet
+
+Sistema multi-negocio de tarjetas de puntos: el cliente escanea un QR en el mostrador, guarda la
+tarjeta en su Wallet sin instalar ninguna app, y el dependiente le suma puntos escaneándola.
+
+**Stack:** Next.js 16 (App Router, TypeScript, Tailwind) · Supabase (Postgres + Auth + RLS) ·
+`passkit-generator` + APNs (Apple) · Google Wallet API (Google) · Vercel.
+
+## Estado por fases
+
+| Fase | Contenido | Estado |
+|------|-----------|--------|
+| 1 | Preparación: proyecto, conexión a Supabase, lista de cuentas | ✅ |
+| 2 | Base de datos y login del personal | ✅ |
+| 3 | Página de alta + Google Wallet | ✅ |
+| 4 | Apple Wallet (`.pkpass` + servicio web de PassKit) | ✅ Programado · se activa con las claves de Apple ([docs/APPLE.md](docs/APPLE.md)) |
+| 5 | App del personal con escáner | ✅ |
+| 6 | Actualizaciones en directo (APNs + PATCH de Google) | ✅ |
+| 7 | Panel del dueño | ✅ |
+| 8 | Superadmin y multi-negocio completo | ✅ Falta Stripe (cobro automático) |
+
+## Alta del cliente
+
+El QR del mostrador lleva a `/c/<negocio>` (p. ej. `/c/cafe-la-esquina`). El cliente pone su
+nombre, su **email (obligatorio)**, su teléfono (opcional), acepta la privacidad y, si quiere,
+marca la casilla de ofertas. Al terminar ve su tarjeta y el botón de su Wallet:
+Google Wallet en Android, y Apple Wallet en iPhone (desde la Fase 4).
+
+Si el email ya tiene tarjeta, solo se la enseñamos en el mismo móvil en el que se dio de alta.
+Así nadie puede ver la tarjeta de otro escribiendo su email.
+
+## App del personal (sin App Store)
+
+Es una **app web instalable** (PWA): desde `/instalar` se añade a la pantalla de inicio del
+móvil o la tablet, y luego se abre con su icono, a pantalla completa, como cualquier app.
+
+- Al **escanear** la tarjeta se apunta la visita sola (si ese día no ha venido ya).
+- Si el cliente tiene descuento, sale un aviso verde grande con el botón **Aplicar descuento**.
+  En el premio de una vez, el contador vuelve a empezar.
+- Lee el QR con el lector nativo del móvil cuando existe (Android) y con `jsQR` cuando no (iPhone).
+
+## Tarjetas que se actualizan solas
+
+Después de cada visita, descuento, cambio de diseño o promoción (`src/lib/wallet/sync.ts`,
+lanzado con `after()` para no hacer esperar al camarero):
+
+- **Google Wallet:** se actualiza la tarjeta (PATCH del objeto) y se manda un aviso con
+  notificación (`addMessage`). Solo para tarjetas cuyo enlace se generó (`cards.google_object_id`).
+- **Apple Wallet:** push vacío por APNs (HTTP/2, con el certificado del pase) a los iPhone
+  registrados; el iPhone pide el pase nuevo al servicio web `/api/apple/v1/…`. El aviso sale
+  del campo «Tu premio» (`changeMessage`).
+
+## Panel del dueño (`/panel/n/<id>`)
+
+- **Resumen:** clientes, visitas, descuentos, gráfico de 30 días y últimos movimientos.
+- **Tarjeta:** nombre, logo, colores, tipo de premio, visitas necesarias, % y datos legales, con
+  vista previa en directo.
+- **Clientes:** buscar, borrar con todos sus datos (RGPD) y descargar en CSV los que aceptan ofertas.
+- **Promoción:** mensaje que aparece en todas las tarjetas con notificación.
+- **Personal:** dar acceso a camareros (o a otro dueño) y quitarlo.
+- **QR:** cartel listo para imprimir y QR en PNG.
+
+## Superadmin (`/panel/admin`)
+
+Alta de negocios con su dueño (cuenta, contraseña inicial, días de prueba, cuota mensual y
+cuota de alta), cifras de negocios, pagando, en prueba e ingresos al mes, y los botones de
+cobro y bloqueo.
+
+## Cómo funcionan los premios
+
+Cada negocio elige su regla en `loyalty_programs`:
+
+| Tipo | Qué pasa |
+|------|----------|
+| **Premio de una vez** (`one_time`) | Al llegar a N visitas, el cliente tiene X% de descuento. El dependiente lo aplica y el contador vuelve a empezar (si llevaba visitas de más, se conservan). |
+| **Nivel permanente** (`permanent`) | A partir de N visitas, el cliente tiene X% **siempre**. |
+
+- **Máximo una visita al día** por tarjeta. Lo impide la propia base de datos, según la zona horaria del negocio.
+- Las visitas **no caducan**.
+- No se puede escanear la misma tarjeta más de 5 veces por minuto.
+- Las visitas y los canjes solo se registran mediante las funciones `scan_card`, `register_visit` y `redeem_reward`. Estas comprueban que quien lo hace es personal de ese negocio y anotan quién lo hizo.
+
+## Base de datos
+
+**Proyecto nuevo:**
+1. Supabase → **SQL Editor** → *New query* → pega `supabase/INSTALAR-TODO.sql` → **Run**.
+2. Crea tu usuario en **Authentication → Users → Add user** (marca *Auto Confirm User*).
+3. Abre `supabase/demo.sql`, cambia el email de la primera línea por el tuyo, pégalo en el SQL Editor y pulsa **Run**.
+   Así serás superadmin y dueño del negocio de demostración «Café La Esquina», con 5 clientes de ejemplo.
+
+**Proyecto que ya tenía la base de datos:** ejecuta solo las migraciones nuevas de
+`supabase/migrations/`, en orden. `INSTALAR-TODO.sql` se regenera con `npm run unir-sql`.
+
+## Suscripciones y bloqueo por impago
+
+Cada negocio tiene un estado: **en prueba** (30 días gratis al crearlo), **al día**, **pago
+pendiente** o **bloqueado**. Si no está al día (y han pasado los **7 días de margen**):
+
+- el personal **no puede escanear**, sumar visitas ni aplicar descuentos;
+- **no se pueden dar de alta** clientes nuevos;
+- las tarjetas de los clientes **siguen en su Wallet**: al pagar, todo vuelve a funcionar al instante.
+
+Lo controla la base de datos (`service_ok`), así que no se puede saltar desde la app. Ni el dueño
+puede cambiar su propio estado: solo un superadmin, desde **/panel/admin** (+1 mes pagado,
++14 días de prueba, bloquear, desbloquear). Con Stripe (más adelante) se hará solo.
+
+## Qué cuentas hay que crear
+
+Ver **[docs/CUENTAS.md](docs/CUENTAS.md)**: paso a paso, con dónde se hace y qué valor copiar.
+Para Apple Wallet: **[docs/APPLE.md](docs/APPLE.md)** (certificado del pase, sin necesidad de Mac).
+
+## Instalación en local
+
+Requisitos: [Node.js](https://nodejs.org) 22 o superior.
+
+```bash
+git clone https://github.com/mj6378438-pixel/ordenador-nuevo-.git
+cd ordenador-nuevo-/fidelizacion
+npm install
+cp .env.example .env.local   # y rellena los valores
+npm run dev
+```
+
+Abre http://localhost:3000 y luego http://localhost:3000/estado para ver qué falta configurar.
+
+## Variables de entorno
+
+Todas están explicadas en [`.env.example`](.env.example). Resumen:
+
+| Variable | Dónde se consigue | Secreta |
+|----------|-------------------|---------|
+| `NEXT_PUBLIC_APP_NAME` | La elegís vosotros | No |
+| `NEXT_PUBLIC_APP_URL` | URL de la web (local o Vercel) | No |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Project Settings → API | No |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase → API Keys → Publishable | No |
+| `SUPABASE_SECRET_KEY` | Supabase → API Keys → Secret | **Sí** |
+| `GOOGLE_WALLET_ISSUER_ID` | Google Pay & Wallet Console | No |
+| `GOOGLE_WALLET_SERVICE_ACCOUNT_BASE64` | JSON de la cuenta de servicio, en base64 | **Sí** |
+| `APPLE_TEAM_ID` | developer.apple.com → Membership | No |
+| `APPLE_PASS_TYPE_ID` | El Pass Type ID registrado | No |
+| `APPLE_PASS_CERT_BASE64` / `APPLE_PASS_KEY_BASE64` / `APPLE_PASS_KEY_PASSPHRASE` | Certificado del Pass Type ID | **Sí** |
+| `APPLE_WWDR_CERT_BASE64` | apple.com/certificateauthority (WWDR G4) | No |
+| `APPLE_PASS_AUTH_SECRET` | `openssl rand -hex 32` | **Sí** |
+
+Los archivos (certificados, JSON) se guardan en base64 para que quepan en una variable:
+
+```bash
+npm run a-base64 -- ruta/al/archivo
+```
+
+Las variables que empiezan por `NEXT_PUBLIC_` las puede ver el navegador; **nunca** pongas ese
+prefijo a una clave secreta.
+
+## Despliegue en Vercel
+
+1. Importa el repositorio en Vercel.
+2. **Root Directory: `fidelizacion`** (importante: el repo tiene otras cosas en la raíz).
+3. Copia las variables de entorno en *Settings → Environment Variables*.
+4. Cada `git push` a la rama principal se publica solo.
+
+## Estructura
+
+```
+fidelizacion/
+├── docs/CUENTAS.md        Lista de cuentas y certificados a registrar
+├── scripts/a-base64.mjs   Convierte certificados a base64
+├── supabase/
+│   ├── migrations/        Esquema de la base de datos (tablas, RLS, lógica de puntos)
+│   ├── INSTALAR-TODO.sql  Todas las migraciones juntas, para un proyecto nuevo
+│   └── demo.sql           Tu cuenta de superadmin + negocio de demostración
+├── src/app/               Páginas (App Router)
+│   ├── c/[slug]/          Página pública del negocio: alta del cliente, su tarjeta y privacidad
+│   ├── entrar/            Login del personal
+│   ├── panel/             App del personal (requiere sesión)
+│   │   ├── escanear/      Escáner: suma la visita y aplica el descuento
+│   │   ├── n/[id]/        Panel del dueño: resumen, tarjeta, clientes, promoción, personal, QR
+│   │   └── admin/         Superadmin: alta de negocios, pagos y bloqueo
+│   ├── api/apple/         Servicio web de PassKit y descarga del pase
+│   ├── instalar/          Instrucciones para instalar la app
+│   ├── manifest.ts        Lo que la hace instalable (nombre, icono, pantalla completa)
+│   └── estado/            Comprobación de la configuración (sin mostrar valores)
+└── src/lib/
+    ├── auth.ts            Usuario actual y sus negocios
+    ├── env.ts             Lectura de variables de entorno
+    ├── loyalty.ts         Reglas y textos de progreso («te faltan 3 visitas…»)
+    ├── cards.ts           Lectura de negocios y tarjetas
+    ├── wallet/
+    │   ├── google.ts      Enlace «Añadir a Google Wallet» (JWT firmado)
+    │   ├── google-api.ts  Actualizar tarjetas y mandar avisos en Google
+    │   ├── apple.ts       Generar el .pkpass firmado
+    │   ├── apns.ts        Avisos push a los iPhone
+    │   └── sync.ts        Qué se actualiza tras cada cambio
+    └── supabase/          Clientes de Supabase (navegador, servidor y admin)
+```
+
+## Comandos
+
+| Comando | Qué hace |
+|---------|----------|
+| `npm run dev` | Arranca en local con recarga automática |
+| `npm run build` | Compila para producción |
+| `npm run lint` | Revisa el código |
+| `npm run typecheck` | Comprueba los tipos de TypeScript |
+| `npm test` | Pasa las pruebas automáticas |
+| `npm run unir-sql` | Regenera `supabase/INSTALAR-TODO.sql` |
